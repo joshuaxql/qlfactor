@@ -3,7 +3,7 @@
 一个基于 A 股日线数据的因子研究项目，包含两条主线：
 
 - 数据下载与整理：通过 Tushare 拉取交易日历、股票基础信息、日线行情并落地为 Parquet。
-- 因子分析引擎：完成因子分组收益、IC 分析、换手率分析、交易成本扣减、多空净值与 Alphalens 对照校验。
+- 因子分析引擎：完成因子分组收益、IC 分析、换手率分析、交易成本扣减与多空净值分析。
 
 ## 1. 当前能力
 
@@ -26,7 +26,6 @@
 - 换手率分位统计（P25/P50/P75）
 - 换手率与收益相关性
 - 按换手率扣交易成本后的净收益分析
-- 与 Alphalens 核心指标对照校验
 - 输出 HTML 可视化报告
 
 ## 2. 项目结构
@@ -62,10 +61,10 @@ qlfactor/
 示例（pip）：
 
 ```bash
-pip install -U pyarrow pyecharts python-dotenv scipy tushare alphalens tqdm
+pip install -U pyarrow pyecharts python-dotenv scipy tushare tqdm
 ```
 
-说明：当前代码实际使用了 alphalens 和 tqdm，请确保环境中已安装。
+说明：当前代码实际使用了 tqdm，请确保环境中已安装。
 
 ### 3.3 配置环境变量
 
@@ -164,7 +163,6 @@ ma_factor.create_factor_analysis_report(
 - 因子换手率统计（含分位数）
 - 换手率与收益相关系数
 - 扣成本后的分组净绩效、多空净绩效
-- Alphalens 对照校验
 
 ### 7.2 报告文件
 

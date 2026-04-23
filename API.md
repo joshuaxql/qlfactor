@@ -193,24 +193,7 @@
 返回：
 - DataFrame，核心列：factor、close、next_ret、factor_quantile。
 
-### 3.1.8 validate_metrics_with_alphalens(self, quantiles: int = 5, period: int = 1, winsorize: str | None = None, winsorize_param: float = 3, standardize: bool = False) -> pd.Series
-
-功能：
-- 用 Alphalens 对照验证自实现指标是否一致。
-
-输出指标：
-- 校验状态
-- IC 均值（自实现/Alphalens）
-- IC 序列相关系数
-- IC 序列平均绝对误差
-- 分组收益平均绝对误差
-- IC 对齐样本数
-
-说明：
-- 若未安装 Alphalens，返回跳过。
-- 内置容差，避免数值细小差异导致误判。
-
-### 3.1.9 caculate_daily_ic(self, result: pd.DataFrame) -> pd.Series
+### 3.1.8 caculate_daily_ic(self, result: pd.DataFrame) -> pd.Series
 
 功能：
 - 计算日度 Rank IC（Spearman）。
@@ -218,12 +201,12 @@
 规则：
 - 当天因子或收益唯一值不足 2 个时返回 NaN。
 
-### 3.1.10 ic_statistics_analysis(self, daily_ic: pd.Series) -> pd.Series
+### 3.1.9 ic_statistics_analysis(self, daily_ic: pd.Series) -> pd.Series
 
 功能：
 - 汇总 IC 统计：均值、标准差、IR、年化 IR。
 
-### 3.1.11 ic_mean_t_test(self, daily_ic: pd.Series) -> pd.Series
+### 3.1.10 ic_mean_t_test(self, daily_ic: pd.Series) -> pd.Series
 
 功能：
 - 对 IC 均值做单样本 t 检验（原假设均值=0）。
@@ -231,17 +214,17 @@
 返回：
 - T 统计量、P 值、显著性文本。
 
-### 3.1.12 plot_ic_time_series(self, daily_ic: pd.Series) -> Line
+### 3.1.11 plot_ic_time_series(self, daily_ic: pd.Series) -> Line
 
 功能：
 - 绘制每日 IC 折线图与均值线。
 
-### 3.1.13 plot_ic_cumulative(self, daily_ic: pd.Series) -> Line
+### 3.1.12 plot_ic_cumulative(self, daily_ic: pd.Series) -> Line
 
 功能：
 - 绘制 IC 累加曲线。
 
-### 3.1.14 calculate_daily_group_ret(self, result: pd.DataFrame) -> pd.DataFrame
+### 3.1.13 calculate_daily_group_ret(self, result: pd.DataFrame) -> pd.DataFrame
 
 功能：
 - 计算各分组的日度等权平均收益。
@@ -249,7 +232,7 @@
 返回：
 - 行索引 date、列为组1~组N。
 
-### 3.1.15 calculate_group_turnover(self, result: pd.DataFrame) -> pd.DataFrame
+### 3.1.14 calculate_group_turnover(self, result: pd.DataFrame) -> pd.DataFrame
 
 功能：
 - 计算分组持仓换手率。
@@ -257,7 +240,7 @@
 定义：
 - 换手率 = 1 - 前后两日持仓重合比例。
 
-### 3.1.16 calculate_group_turnover_stats(self, group_turnover: pd.DataFrame) -> pd.DataFrame
+### 3.1.15 calculate_group_turnover_stats(self, group_turnover: pd.DataFrame) -> pd.DataFrame
 
 功能：
 - 汇总分组换手率统计。
@@ -269,7 +252,7 @@
 - P50
 - P75
 
-### 3.1.17 calculate_factor_turnover_rate(self, factor: pd.Series) -> pd.Series
+### 3.1.16 calculate_factor_turnover_rate(self, factor: pd.Series) -> pd.Series
 
 功能：
 - 计算因子整体换手率。
@@ -282,7 +265,7 @@
 - 与前一日秩做 Spearman 相关。
 - 常量截面自动记为 NaN。
 
-### 3.1.18 factor_turnover_stats(self, factor_turnover: pd.Series) -> pd.Series
+### 3.1.17 factor_turnover_stats(self, factor_turnover: pd.Series) -> pd.Series
 
 功能：
 - 汇总因子换手率统计。
@@ -290,7 +273,7 @@
 输出：
 - 平均换手率、换手率标准差、P25/P50/P75。
 
-### 3.1.19 calculate_turnover_return_correlation(self, group_turnover: pd.DataFrame, group_ret: pd.DataFrame) -> pd.Series
+### 3.1.18 calculate_turnover_return_correlation(self, group_turnover: pd.DataFrame, group_ret: pd.DataFrame) -> pd.Series
 
 功能：
 - 计算各分组换手率与收益的相关系数。
@@ -298,7 +281,7 @@
 返回：
 - Series，索引为组名。
 
-### 3.1.20 calculate_net_returns_with_cost(self, group_ret: pd.DataFrame, group_turnover: pd.DataFrame, cost_bps: float = 10) -> tuple[pd.DataFrame, pd.Series, pd.Series, pd.Series]
+### 3.1.19 calculate_net_returns_with_cost(self, group_ret: pd.DataFrame, group_turnover: pd.DataFrame, cost_bps: float = 10) -> tuple[pd.DataFrame, pd.Series, pd.Series, pd.Series]
 
 功能：
 - 按换手率扣交易成本，输出净收益。
@@ -317,7 +300,7 @@
 - 分组净收益 = 分组毛收益 - 分组换手率 × 成本率
 - 多空净收益 = 多空毛收益 - (高组换手率 + 低组换手率) × 成本率
 
-### 3.1.21 performance_analysis(self, ret_series: pd.Series, period: int = 1) -> pd.Series
+### 3.1.20 performance_analysis(self, ret_series: pd.Series, period: int = 1) -> pd.Series
 
 功能：
 - 单序列绩效统计。
@@ -328,57 +311,57 @@
 - 夏普比率
 - 总累计收益
 
-### 3.1.22 calculate_all_group_performance(self, group_ret: pd.DataFrame, period: int = 1) -> pd.DataFrame
+### 3.1.21 calculate_all_group_performance(self, group_ret: pd.DataFrame, period: int = 1) -> pd.DataFrame
 
 功能：
 - 批量计算各分组绩效。
 
-### 3.1.23 calculate_long_short(self, group_ret: pd.DataFrame, period: int = 1) -> tuple[pd.Series, pd.Series]
+### 3.1.22 calculate_long_short(self, group_ret: pd.DataFrame, period: int = 1) -> tuple[pd.Series, pd.Series]
 
 功能：
 - 计算多空组合（最高组 - 最低组）收益与绩效。
 
-### 3.1.24 plot_group_annual_bar(self, group_perf_df: pd.DataFrame) -> Bar
+### 3.1.23 plot_group_annual_bar(self, group_perf_df: pd.DataFrame) -> Bar
 
 功能：
 - 分组年化收益柱状图。
 
-### 3.1.25 plot_ic_histogram(self, daily_ic: pd.Series) -> Bar
+### 3.1.24 plot_ic_histogram(self, daily_ic: pd.Series) -> Bar
 
 功能：
 - IC 分布直方图。
 
-### 3.1.26 plot_group_cumulative_return(self, group_ret: pd.DataFrame, long_short_ret: pd.Series) -> Line
+### 3.1.25 plot_group_cumulative_return(self, group_ret: pd.DataFrame, long_short_ret: pd.Series) -> Line
 
 功能：
 - 分组累计收益曲线 + 多空累计净值曲线。
 
-### 3.1.27 plot_group_turnover(self, group_turnover: pd.DataFrame) -> Line
+### 3.1.26 plot_group_turnover(self, group_turnover: pd.DataFrame) -> Line
 
 功能：
 - 分组换手率时序图。
 
-### 3.1.28 plot_group_turnover_bar(self, turnover_stats: pd.DataFrame) -> Bar
+### 3.1.27 plot_group_turnover_bar(self, turnover_stats: pd.DataFrame) -> Bar
 
 功能：
 - 分组平均换手率柱状图。
 
-### 3.1.29 plot_factor_turnover(self, factor_turnover: pd.Series) -> Line
+### 3.1.28 plot_factor_turnover(self, factor_turnover: pd.Series) -> Line
 
 功能：
 - 因子整体换手率时序图。
 
-### 3.1.30 plot_turnover_return_correlation(self, corr_series: pd.Series) -> Bar
+### 3.1.29 plot_turnover_return_correlation(self, corr_series: pd.Series) -> Bar
 
 功能：
 - 分组换手率与收益相关系数柱状图。
 
-### 3.1.31 plot_long_short_net_vs_gross(self, long_short_gross: pd.Series, long_short_net: pd.Series, cost_bps: float) -> Line
+### 3.1.30 plot_long_short_net_vs_gross(self, long_short_gross: pd.Series, long_short_net: pd.Series, cost_bps: float) -> Line
 
 功能：
 - 多空毛收益累计、净收益累计、累计成本拖累三条曲线对比。
 
-### 3.1.32 create_factor_analysis_report(self, quantiles: int = 5, period: int = 1, winsorize: str | None = None, winsorize_param: float = 3, standardize: bool = False, transaction_cost_bps: float = 10) -> None
+### 3.1.31 create_factor_analysis_report(self, quantiles: int = 5, period: int = 1, winsorize: str | None = None, winsorize_param: float = 3, standardize: bool = False, transaction_cost_bps: float = 10) -> None
 
 功能：
 - 一键生成完整分析流程和 HTML 报告。
@@ -386,7 +369,7 @@
 核心步骤：
 1. 构建因子数据集。
 2. 计算分组收益、多空收益、IC、换手率、净收益。
-3. 计算 Alphalens 对照校验。
+3. 计算分组收益、多空收益、IC、换手率与净收益。
 4. 生成可视化页面并写入 output/因子分析报告.html。
 5. 在控制台输出关键统计表。
 
@@ -547,19 +530,7 @@ result = f.get_clean_factor_and_forward_returns(
 print(result.head())
 ```
 
-### 6.11 validate_metrics_with_alphalens
-
-```python
-check = f.validate_metrics_with_alphalens(
-	quantiles=5,
-	period=1,
-	winsorize="3sigma",
-	standardize=True,
-)
-print(check)
-```
-
-### 6.12 caculate_daily_ic / ic_statistics_analysis / ic_mean_t_test
+### 6.11 caculate_daily_ic / ic_statistics_analysis / ic_mean_t_test
 
 ```python
 daily_ic = f.caculate_daily_ic(result)
@@ -571,7 +542,7 @@ print(ic_stats)
 print(ic_t)
 ```
 
-### 6.13 calculate_daily_group_ret / calculate_long_short / performance_analysis / calculate_all_group_performance
+### 6.12 calculate_daily_group_ret / calculate_long_short / performance_analysis / calculate_all_group_performance
 
 ```python
 group_ret = f.calculate_daily_group_ret(result)
@@ -585,7 +556,7 @@ print(group_perf.head())
 print(ls_perf_check)
 ```
 
-### 6.14 calculate_group_turnover / calculate_group_turnover_stats
+### 6.13 calculate_group_turnover / calculate_group_turnover_stats
 
 ```python
 group_turnover = f.calculate_group_turnover(result)
@@ -595,7 +566,7 @@ print(group_turnover.head())
 print(group_turnover_stats)
 ```
 
-### 6.15 calculate_factor_turnover_rate / factor_turnover_stats
+### 6.14 calculate_factor_turnover_rate / factor_turnover_stats
 
 ```python
 factor_values = f._prepare_factor_values(winsorize="3sigma", standardize=True).dropna()
@@ -606,14 +577,14 @@ print(factor_turnover.dropna().head())
 print(factor_turnover_stats)
 ```
 
-### 6.16 calculate_turnover_return_correlation
+### 6.15 calculate_turnover_return_correlation
 
 ```python
 corr_series = f.calculate_turnover_return_correlation(group_turnover, group_ret)
 print(corr_series)
 ```
 
-### 6.17 calculate_net_returns_with_cost
+### 6.16 calculate_net_returns_with_cost
 
 ```python
 group_net_ret, ls_gross_ret, ls_net_ret, ls_net_perf = f.calculate_net_returns_with_cost(
@@ -628,7 +599,7 @@ print(ls_net_ret.head())
 print(ls_net_perf)
 ```
 
-### 6.18 图表函数最小调用
+### 6.17 图表函数最小调用
 
 ```python
 chart1 = f.plot_ic_time_series(daily_ic)
@@ -646,7 +617,7 @@ for c in [chart1, chart2, chart3, chart4, chart5, chart6, chart7, chart8, chart9
 	print(type(c))
 ```
 
-### 6.19 create_factor_analysis_report
+### 6.18 create_factor_analysis_report
 
 ```python
 f.create_factor_analysis_report(
