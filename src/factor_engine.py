@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import logging
 import pandas as pd
 from datetime import datetime
 import numpy as np
@@ -18,6 +19,452 @@ class Factor(ABC):
         """
         self.name = name
         self.data = data
+        self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+
+    def _series_stats(self, s: pd.Series) -> str:
+        return (
+            f"len={len(s)}, nan={int(s.isna().sum())}, "
+            f"index_names={list(s.index.names)}"
+        )
+
+    def _df_stats(self, df: pd.DataFrame) -> str:
+        return (
+            f"shape={df.shape}, nan_total={int(df.isna().sum().sum())}, "
+            f"columns={list(df.columns)}"
+        )
+
+    # ==================== 常用字段别名（公式风格） ====================
+    @property
+    def OPEN(self) -> pd.Series:
+        return self.data["open"]
+
+    @property
+    def HIGH(self) -> pd.Series:
+        return self.data["high"]
+
+    @property
+    def LOW(self) -> pd.Series:
+        return self.data["low"]
+
+    @property
+    def CLOSE(self) -> pd.Series:
+        return self.data["close"]
+
+    @property
+    def VOLUME(self) -> pd.Series:
+        return self.data["volume"]
+
+    @property
+    def AMOUNT(self) -> pd.Series:
+        return self.data["amount"]
+
+    @property
+    def TURNOVER_RATE(self) -> pd.Series:
+        return self.data["turnover_rate"]
+
+    @property
+    def TURNOVER_RATE_F(self) -> pd.Series:
+        return self.data["turnover_rate_f"]
+
+    @property
+    def PRE_CLOSE(self) -> pd.Series:
+        return self.data["pre_close"]
+
+    @property
+    def CHANGE(self) -> pd.Series:
+        return self.data["change"]
+
+    @property
+    def PCT_CHG(self) -> pd.Series:
+        return self.data["pct_chg"]
+
+    @property
+    def ADJ_FACTOR(self) -> pd.Series:
+        return self.data["adj_factor"]
+
+    @property
+    def VOLUME_RATIO(self) -> pd.Series:
+        return self.data["volume_ratio"]
+
+    @property
+    def PE(self) -> pd.Series:
+        return self.data["pe"]
+
+    @property
+    def PE_TTM(self) -> pd.Series:
+        return self.data["pe_ttm"]
+
+    @property
+    def PB(self) -> pd.Series:
+        return self.data["pb"]
+
+    @property
+    def PS(self) -> pd.Series:
+        return self.data["ps"]
+
+    @property
+    def PS_TTM(self) -> pd.Series:
+        return self.data["ps_ttm"]
+
+    @property
+    def DV_RATIO(self) -> pd.Series:
+        return self.data["dv_ratio"]
+
+    @property
+    def DV_TTM(self) -> pd.Series:
+        return self.data["dv_ttm"]
+
+    @property
+    def TOTAL_SHARE(self) -> pd.Series:
+        return self.data["total_share"]
+
+    @property
+    def FLOAT_SHARE(self) -> pd.Series:
+        return self.data["float_share"]
+
+    @property
+    def FREE_SHARE(self) -> pd.Series:
+        return self.data["free_share"]
+
+    @property
+    def TOTAL_MV(self) -> pd.Series:
+        return self.data["total_mv"]
+
+    @property
+    def CIRC_MV(self) -> pd.Series:
+        return self.data["circ_mv"]
+
+    def _resolve_series(self, x: str | pd.Series) -> pd.Series:
+        """将字段名或Series统一解析为Series。"""
+        if isinstance(x, pd.Series):
+            return x
+        if isinstance(x, str):
+            key = x.lower()
+            if key in self.data.columns:
+                return self.data[key]
+            raise KeyError(f"字段不存在: {x}")
+        raise TypeError("参数必须是字段名(str)或pandas.Series")
+
+    def _resolve_value(self, x: str | pd.Series | float | int | bool) -> pd.Series:
+        """将字段名/Series/标量统一解析为与 data 对齐的 Series。"""
+        if isinstance(x, (int, float, bool, np.number)):
+            return pd.Series(x, index=self.data.index)
+
+        s = self._resolve_series(x)
+        if not s.index.equals(self.data.index):
+            s = s.reindex(self.data.index)
+        return s
+
+    def _formula_namespace(self) -> dict[str, object]:
+        """构造公式执行上下文（可直接使用 MA(CLOSE, 20) 风格）。"""
+        return {
+            # 字段
+            "OPEN": self.OPEN,
+            "HIGH": self.HIGH,
+            "LOW": self.LOW,
+            "CLOSE": self.CLOSE,
+            "VOLUME": self.VOLUME,
+            "AMOUNT": self.AMOUNT,
+            "TURNOVER_RATE": self.TURNOVER_RATE,
+            "TURNOVER_RATE_F": self.TURNOVER_RATE_F,
+            "PRE_CLOSE": self.PRE_CLOSE,
+            "CHANGE": self.CHANGE,
+            "PCT_CHG": self.PCT_CHG,
+            "ADJ_FACTOR": self.ADJ_FACTOR,
+            "VOLUME_RATIO": self.VOLUME_RATIO,
+            "PE": self.PE,
+            "PE_TTM": self.PE_TTM,
+            "PB": self.PB,
+            "PS": self.PS,
+            "PS_TTM": self.PS_TTM,
+            "DV_RATIO": self.DV_RATIO,
+            "DV_TTM": self.DV_TTM,
+            "TOTAL_SHARE": self.TOTAL_SHARE,
+            "FLOAT_SHARE": self.FLOAT_SHARE,
+            "FREE_SHARE": self.FREE_SHARE,
+            "TOTAL_MV": self.TOTAL_MV,
+            "CIRC_MV": self.CIRC_MV,
+            # 常用算子
+            "MA": self.MA,
+            "EMA": self.EMA,
+            "RANK": self.RANK,
+            "REF": self.REF,
+            "DELTA": self.DELTA,
+            "STD": self.STD,
+            "SUM": self.SUM,
+            # 通达信风格
+            "ABS": self.ABS,
+            "MAX": self.MAX,
+            "MIN": self.MIN,
+            "IF": self.IF,
+            "COUNT": self.COUNT,
+            "EVERY": self.EVERY,
+            "EXIST": self.EXIST,
+            "HHV": self.HHV,
+            "LLV": self.LLV,
+            "TSRANK": self.TSRANK,
+            "SMA": self.SMA,
+            "CROSS": self.CROSS,
+            # 常用数值函数
+            "LOG": np.log,
+            "EXP": np.exp,
+            "SQRT": np.sqrt,
+        }
+
+    def FORMULA(self, expr: str, **extra: object) -> pd.Series:
+        """执行公式表达式，支持 MA(CLOSE, 20) 这类无 self 写法。"""
+        ns = self._formula_namespace()
+        ns.update(extra)
+        self.logger.info("执行公式: %s", expr)
+        try:
+            result = eval(expr, {"__builtins__": {}}, ns)
+            if isinstance(result, pd.Series):
+                if not result.index.equals(self.data.index):
+                    result = result.reindex(self.data.index)
+                self.logger.info("公式执行完成: %s", self._series_stats(result))
+                return result
+            if isinstance(result, (int, float, bool, np.number)):
+                out = pd.Series(result, index=self.data.index)
+                self.logger.info("公式执行完成(标量扩展): %s", self._series_stats(out))
+                return out
+            raise TypeError("公式结果必须是 pandas.Series 或标量")
+        except Exception:
+            self.logger.exception("公式执行失败: %s", expr)
+            raise
+
+    def BIND(self, *names: str):
+        """一次性绑定名称，减少重复写 self.。"""
+        ns = self._formula_namespace()
+        if not names:
+            return ns
+        values = []
+        for name in names:
+            if name not in ns:
+                raise KeyError(f"未知名称: {name}")
+            values.append(ns[name])
+        return tuple(values)
+
+    # ==================== 常用时序/截面算子 ====================
+    def MA(
+        self,
+        x: str | pd.Series,
+        n: int,
+        min_periods: int | None = None,
+    ) -> pd.Series:
+        """移动平均，按 symbol 分组滚动计算。"""
+        s = self._resolve_series(x)
+        mp = n if min_periods is None else min_periods
+        return s.groupby(level="symbol").transform(
+            lambda v: v.rolling(n, min_periods=mp).mean()
+        )
+
+    def EMA(
+        self,
+        x: str | pd.Series,
+        n: int,
+        adjust: bool = True,
+        min_periods: int = 1,
+    ) -> pd.Series:
+        """指数移动平均，按 symbol 分组计算。"""
+        s = self._resolve_series(x)
+        return s.groupby(level="symbol").transform(
+            lambda v: v.ewm(span=n, adjust=adjust, min_periods=min_periods).mean()
+        )
+
+    def RANK(
+        self,
+        x: str | pd.Series,
+        pct: bool = True,
+        ascending: bool = True,
+        method: str = "average",
+    ) -> pd.Series:
+        """截面排序，按 date 分组排名。"""
+        s = self._resolve_series(x)
+        return s.groupby(level="date").rank(method=method, ascending=ascending, pct=pct)
+
+    def REF(self, x: str | pd.Series, n: int = 1) -> pd.Series:
+        """滞后项，按 symbol 分组向后移动 n 期。"""
+        s = self._resolve_series(x)
+        return s.groupby(level="symbol").shift(n)
+
+    def DELTA(self, x: str | pd.Series, n: int = 1) -> pd.Series:
+        """差分，当前值减去 n 期前的值。"""
+        s = self._resolve_series(x)
+        return s.groupby(level="symbol").diff(n)
+
+    def STD(
+        self,
+        x: str | pd.Series,
+        n: int,
+        min_periods: int | None = None,
+    ) -> pd.Series:
+        """滚动标准差，按 symbol 分组计算。"""
+        s = self._resolve_series(x)
+        mp = n if min_periods is None else min_periods
+        return s.groupby(level="symbol").transform(
+            lambda v: v.rolling(n, min_periods=mp).std()
+        )
+
+    def SUM(
+        self,
+        x: str | pd.Series,
+        n: int,
+        min_periods: int | None = None,
+    ) -> pd.Series:
+        """滚动求和，按 symbol 分组计算。"""
+        s = self._resolve_series(x)
+        mp = n if min_periods is None else min_periods
+        return s.groupby(level="symbol").transform(
+            lambda v: v.rolling(n, min_periods=mp).sum()
+        )
+
+    # ==================== 通达信风格常用函数 ====================
+    def ABS(self, x: str | pd.Series) -> pd.Series:
+        s = self._resolve_series(x)
+        return s.abs()
+
+    def MAX(
+        self,
+        a: str | pd.Series | float | int,
+        b: str | pd.Series | float | int,
+    ) -> pd.Series:
+        sa = self._resolve_value(a)
+        sb = self._resolve_value(b)
+        return pd.concat([sa, sb], axis=1).max(axis=1)
+
+    def MIN(
+        self,
+        a: str | pd.Series | float | int,
+        b: str | pd.Series | float | int,
+    ) -> pd.Series:
+        sa = self._resolve_value(a)
+        sb = self._resolve_value(b)
+        return pd.concat([sa, sb], axis=1).min(axis=1)
+
+    def IF(
+        self,
+        cond: str | pd.Series | float | int | bool,
+        a: str | pd.Series | float | int,
+        b: str | pd.Series | float | int,
+    ) -> pd.Series:
+        c = self._resolve_value(cond).fillna(False).astype(bool)
+        sa = self._resolve_value(a)
+        sb = self._resolve_value(b)
+        return pd.Series(np.where(c, sa, sb), index=self.data.index)
+
+    def COUNT(
+        self,
+        cond: str | pd.Series | float | int | bool,
+        n: int,
+        min_periods: int | None = None,
+    ) -> pd.Series:
+        c = self._resolve_value(cond).fillna(False).astype(bool).astype(int)
+        mp = n if min_periods is None else min_periods
+        return c.groupby(level="symbol").transform(
+            lambda v: v.rolling(n, min_periods=mp).sum()
+        )
+
+    def EVERY(
+        self,
+        cond: str | pd.Series | float | int | bool,
+        n: int,
+        min_periods: int | None = None,
+    ) -> pd.Series:
+        """最近 n 期是否全部满足条件。"""
+        c = self._resolve_value(cond).fillna(False).astype(bool).astype(int)
+        mp = n if min_periods is None else min_periods
+        out = c.groupby(level="symbol").transform(
+            lambda v: v.rolling(n, min_periods=mp).min()
+        )
+        return out == 1
+
+    def EXIST(
+        self,
+        cond: str | pd.Series | float | int | bool,
+        n: int,
+        min_periods: int | None = None,
+    ) -> pd.Series:
+        """最近 n 期是否至少一次满足条件。"""
+        c = self._resolve_value(cond).fillna(False).astype(bool).astype(int)
+        mp = n if min_periods is None else min_periods
+        out = c.groupby(level="symbol").transform(
+            lambda v: v.rolling(n, min_periods=mp).max()
+        )
+        return out == 1
+
+    def HHV(
+        self,
+        x: str | pd.Series,
+        n: int,
+        min_periods: int | None = None,
+    ) -> pd.Series:
+        """最近 n 期最高值（按 symbol 滚动）。"""
+        s = self._resolve_series(x)
+        mp = n if min_periods is None else min_periods
+        return s.groupby(level="symbol").transform(
+            lambda v: v.rolling(n, min_periods=mp).max()
+        )
+
+    def LLV(
+        self,
+        x: str | pd.Series,
+        n: int,
+        min_periods: int | None = None,
+    ) -> pd.Series:
+        """最近 n 期最低值（按 symbol 滚动）。"""
+        s = self._resolve_series(x)
+        mp = n if min_periods is None else min_periods
+        return s.groupby(level="symbol").transform(
+            lambda v: v.rolling(n, min_periods=mp).min()
+        )
+
+    def TSRANK(
+        self,
+        x: str | pd.Series,
+        n: int,
+        pct: bool = True,
+        min_periods: int | None = None,
+    ) -> pd.Series:
+        """时序排序：当前值在最近 n 期窗口内的排名。"""
+        s = self._resolve_series(x)
+        mp = n if min_periods is None else min_periods
+
+        def _rank_last(window: pd.Series) -> float:
+            return window.rank(pct=pct).iloc[-1]
+
+        return s.groupby(level="symbol").transform(
+            lambda v: v.rolling(n, min_periods=mp).apply(_rank_last, raw=False)
+        )
+
+    def SMA(
+        self,
+        x: str | pd.Series,
+        n: int,
+        m: int = 1,
+        min_periods: int = 1,
+    ) -> pd.Series:
+        """通达信SMA：Y=(M*X+(N-M)*Y')/N。"""
+        if n <= 0:
+            raise ValueError("n 必须大于 0")
+        if not (0 < m <= n):
+            raise ValueError("m 必须满足 0 < m <= n")
+        s = self._resolve_series(x)
+        alpha = m / n
+        return s.groupby(level="symbol").transform(
+            lambda v: v.ewm(alpha=alpha, adjust=False, min_periods=min_periods).mean()
+        )
+
+    def CROSS(
+        self,
+        a: str | pd.Series | float | int,
+        b: str | pd.Series | float | int,
+    ) -> pd.Series:
+        """上穿信号：本期 a>b 且上期 a<=b。"""
+        sa = self._resolve_value(a)
+        sb = self._resolve_value(b)
+        prev_a = sa.groupby(level="symbol").shift(1)
+        prev_b = sb.groupby(level="symbol").shift(1)
+        return (sa > sb) & (prev_a <= prev_b)
 
     @abstractmethod
     def caculate(self) -> pd.Series:
@@ -85,21 +532,37 @@ class Factor(ABC):
         standardize: bool = False,
     ) -> pd.Series:
         """对原始因子值做去极值和标准化处理。"""
-        factor = self.caculate()
+        self.logger.info(
+            "开始计算因子值: name=%s, winsorize=%s, winsorize_param=%s, standardize=%s",
+            self.name,
+            winsorize,
+            winsorize_param,
+            standardize,
+        )
+        try:
+            factor = self.caculate()
+            self.logger.info("原始因子统计: %s", self._series_stats(factor))
 
-        if winsorize == "3sigma":
-            factor = factor.groupby(level="date").transform(
-                lambda x: self.winsorize_3sigma(x, winsorize_param)
-            )
-        elif winsorize == "mad":
-            factor = factor.groupby(level="date").transform(
-                lambda x: self.winsorize_mad(x, winsorize_param)
-            )
+            if winsorize == "3sigma":
+                self.logger.info("执行去极值: 3sigma")
+                factor = factor.groupby(level="date").transform(
+                    lambda x: self.winsorize_3sigma(x, winsorize_param)
+                )
+            elif winsorize == "mad":
+                self.logger.info("执行去极值: mad")
+                factor = factor.groupby(level="date").transform(
+                    lambda x: self.winsorize_mad(x, winsorize_param)
+                )
 
-        if standardize:
-            factor = factor.groupby(level="date").transform(self.standardize_zscore)
+            if standardize:
+                self.logger.info("执行标准化: zscore")
+                factor = factor.groupby(level="date").transform(self.standardize_zscore)
 
-        return factor
+            self.logger.info("处理后因子统计: %s", self._series_stats(factor))
+            return factor
+        except Exception:
+            self.logger.exception("因子值计算失败: %s", self.name)
+            raise
 
     def get_clean_factor_and_forward_returns(
         self,
@@ -805,72 +1268,97 @@ class Factor(ABC):
             standardize: 是否做 Z-score 标准化（默认 False）
             transaction_cost_bps: 单边交易成本（bps，默认10）
         """
-        result = self.get_clean_factor_and_forward_returns(
-            quantiles, period, winsorize, winsorize_param, standardize
+        self.logger.info(
+            "开始生成因子报告: name=%s, quantiles=%s, period=%s, winsorize=%s, standardize=%s, cost_bps=%s",
+            self.name,
+            quantiles,
+            period,
+            winsorize,
+            standardize,
+            transaction_cost_bps,
         )
-        daily_group_ret = self.calculate_daily_group_ret(result)
-        group_perf = self.calculate_all_group_performance(daily_group_ret, period)
-        ls_ret, ls_perf = self.calculate_long_short(daily_group_ret, period)
-        daily_ic = self.caculate_daily_ic(result)
-        ic_stats = self.ic_statistics_analysis(daily_ic)
-        ic_t = self.ic_mean_t_test(daily_ic)
-        group_turnover = self.calculate_group_turnover(result)
-        group_turnover_stats = self.calculate_group_turnover_stats(group_turnover)
-        factor_values = self._prepare_factor_values(
-            winsorize=winsorize,
-            winsorize_param=winsorize_param,
-            standardize=standardize,
-        ).dropna()
-        factor_turnover = self.calculate_factor_turnover_rate(factor_values)
-        factor_turnover_summary = self.factor_turnover_stats(factor_turnover)
-        turnover_ret_corr = self.calculate_turnover_return_correlation(
-            group_turnover, daily_group_ret
-        )
-        group_net_ret, ls_gross_ret, ls_net_ret, ls_net_perf = (
-            self.calculate_net_returns_with_cost(
-                daily_group_ret,
-                group_turnover,
-                cost_bps=transaction_cost_bps,
+        try:
+            result = self.get_clean_factor_and_forward_returns(
+                quantiles, period, winsorize, winsorize_param, standardize
             )
-        )
-        group_net_perf = self.calculate_all_group_performance(group_net_ret, period)
-        page = Page(page_title="因子分析报告", layout=Page.SimplePageLayout)
-        page.add(self.plot_group_cumulative_return(daily_group_ret, ls_ret))
-        page.add(self.plot_ic_time_series(daily_ic))
-        page.add(self.plot_ic_cumulative(daily_ic))
-        page.add(self.plot_group_annual_bar(group_perf))
-        page.add(self.plot_ic_histogram(daily_ic))
-        page.add(self.plot_group_turnover(group_turnover))
-        page.add(self.plot_group_turnover_bar(group_turnover_stats))
-        page.add(self.plot_factor_turnover(factor_turnover))
-        page.add(self.plot_turnover_return_correlation(turnover_ret_corr))
-        page.add(
-            self.plot_long_short_net_vs_gross(
-                ls_gross_ret, ls_net_ret, cost_bps=transaction_cost_bps
-            )
-        )
-        page.render("./output/因子分析报告.html")
+            self.logger.info("clean因子数据: %s", self._df_stats(result))
 
-        print("\n分组绩效指标\n", group_perf)
-        print("\n多空组合指标\n", ls_perf)
-        print("\nIC统计指标\n", ic_stats)
-        print("\nIC T检验\n", ic_t)
-        print("\n分组换手率统计\n", group_turnover_stats)
-        print("\n因子换手率统计\n", factor_turnover_summary)
-        print("\n换手率与收益相关系数\n", turnover_ret_corr)
-        print(f"\n分组净绩效指标(扣{transaction_cost_bps}bps)\n", group_net_perf)
-        print(f"\n多空净绩效指标(扣{transaction_cost_bps}bps)\n", ls_net_perf)
+            daily_group_ret = self.calculate_daily_group_ret(result)
+            self.logger.info("分组收益矩阵: %s", self._df_stats(daily_group_ret))
+
+            group_perf = self.calculate_all_group_performance(daily_group_ret, period)
+            ls_ret, ls_perf = self.calculate_long_short(daily_group_ret, period)
+            daily_ic = self.caculate_daily_ic(result)
+            self.logger.info("IC序列: %s", self._series_stats(daily_ic))
+
+            ic_stats = self.ic_statistics_analysis(daily_ic)
+            ic_t = self.ic_mean_t_test(daily_ic)
+            group_turnover = self.calculate_group_turnover(result)
+            self.logger.info("分组换手率: %s", self._df_stats(group_turnover))
+
+            group_turnover_stats = self.calculate_group_turnover_stats(group_turnover)
+            factor_values = self._prepare_factor_values(
+                winsorize=winsorize,
+                winsorize_param=winsorize_param,
+                standardize=standardize,
+            ).dropna()
+            self.logger.info(
+                "用于换手率的因子值: %s", self._series_stats(factor_values)
+            )
+
+            factor_turnover = self.calculate_factor_turnover_rate(factor_values)
+            factor_turnover_summary = self.factor_turnover_stats(factor_turnover)
+            turnover_ret_corr = self.calculate_turnover_return_correlation(
+                group_turnover, daily_group_ret
+            )
+            group_net_ret, ls_gross_ret, ls_net_ret, ls_net_perf = (
+                self.calculate_net_returns_with_cost(
+                    daily_group_ret,
+                    group_turnover,
+                    cost_bps=transaction_cost_bps,
+                )
+            )
+            group_net_perf = self.calculate_all_group_performance(group_net_ret, period)
+
+            page = Page(page_title="因子分析报告", layout=Page.SimplePageLayout)
+            page.add(self.plot_group_cumulative_return(daily_group_ret, ls_ret))
+            page.add(self.plot_ic_time_series(daily_ic))
+            page.add(self.plot_ic_cumulative(daily_ic))
+            page.add(self.plot_group_annual_bar(group_perf))
+            page.add(self.plot_ic_histogram(daily_ic))
+            page.add(self.plot_group_turnover(group_turnover))
+            page.add(self.plot_group_turnover_bar(group_turnover_stats))
+            page.add(self.plot_factor_turnover(factor_turnover))
+            page.add(self.plot_turnover_return_correlation(turnover_ret_corr))
+            page.add(
+                self.plot_long_short_net_vs_gross(
+                    ls_gross_ret, ls_net_ret, cost_bps=transaction_cost_bps
+                )
+            )
+            page.render("./output/因子分析报告.html")
+            self.logger.info("报告已写入: ./output/因子分析报告.html")
+
+            print("\n分组绩效指标\n", group_perf)
+            print("\n多空组合指标\n", ls_perf)
+            print("\nIC统计指标\n", ic_stats)
+            print("\nIC T检验\n", ic_t)
+            print("\n分组换手率统计\n", group_turnover_stats)
+            print("\n因子换手率统计\n", factor_turnover_summary)
+            print("\n换手率与收益相关系数\n", turnover_ret_corr)
+            print(f"\n分组净绩效指标(扣{transaction_cost_bps}bps)\n", group_net_perf)
+            print(f"\n多空净绩效指标(扣{transaction_cost_bps}bps)\n", ls_net_perf)
+            self.logger.info("因子报告生成完成: %s", self.name)
+        except Exception:
+            self.logger.exception("因子报告生成失败: %s", self.name)
+            raise
 
 
 if __name__ == "__main__":
 
-    class ma(Factor):
+    class my_factor(Factor):
         def caculate(self):
-            return (
-                self.data["turnover_rate"]
-                .groupby(level="symbol")
-                .transform(lambda x: x.rolling(20).mean() / x)
-            )
+            MA, CLOSE = self.BIND("MA", "CLOSE")
+            return MA(CLOSE, 20) / CLOSE - 1
 
     from config import db_path
 
@@ -878,7 +1366,7 @@ if __name__ == "__main__":
     data = data[data["date"].between(datetime(2023, 1, 1), datetime(2025, 12, 31))]
     data = data.set_index(["date", "symbol"]).sort_index()
     data["close"] = data["close"] * data["adj_factor"]
-    ma_factor = ma("ma", data)
+    ma_factor = my_factor("my_factor", data)
     transaction_cost_bps = 5
     ma_factor.create_factor_analysis_report(
         winsorize="3sigma",

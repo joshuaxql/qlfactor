@@ -116,6 +116,8 @@
 职责：
 - 定义因子计算接口。
 - 提供通用的因子清洗、收益分析、IC 分析、换手率分析、交易成本分析、图表输出和报告生成。
+- 提供公式化因子 DSL（如 `MA(CLOSE, 20)`）及通达信风格算子。
+- 在公式执行、因子预处理、报告生成阶段输出日志，便于排错。
 
 数据约定：
 - self.data 为 MultiIndex(date, symbol) 的 DataFrame。
@@ -137,6 +139,49 @@
 
 返回：
 - 因子值 Series，索引为 (date, symbol)。
+
+### 3.1.2A 字段别名（大写属性）
+
+可直接在公式里使用：
+
+- OPEN, HIGH, LOW, CLOSE
+- PRE_CLOSE, CHANGE, PCT_CHG
+- VOLUME, AMOUNT, ADJ_FACTOR
+- TURNOVER_RATE, TURNOVER_RATE_F, VOLUME_RATIO
+- PE, PE_TTM, PB, PS, PS_TTM
+- DV_RATIO, DV_TTM
+- TOTAL_SHARE, FLOAT_SHARE, FREE_SHARE
+- TOTAL_MV, CIRC_MV
+
+### 3.1.2B 公式入口：FORMULA / BIND
+
+1. `FORMULA(self, expr: str, **extra) -> pd.Series`
+- 功能：在安全命名空间执行表达式字符串。
+- 示例：`self.FORMULA("MA(CLOSE, 20) / CLOSE - 1")`
+- 返回：Series（标量会自动扩展为与 `self.data.index` 对齐的 Series）。
+- 异常：表达式执行失败时会记录 traceback 并抛出原异常。
+
+2. `BIND(self, *names: str)`
+- 功能：绑定公式名称，减少重复写 `self.`。
+- 示例：`MA, CLOSE = self.BIND("MA", "CLOSE")`
+
+### 3.1.2C 公式函数（新增）
+
+基础算子：
+- MA, EMA, RANK, REF, DELTA, STD, SUM
+
+通达信风格：
+- ABS, MAX, MIN, IF, COUNT, EVERY, EXIST, HHV, LLV, TSRANK, SMA, CROSS
+
+数学函数：
+- LOG, EXP, SQRT
+
+口径说明：
+- 时序滚动类默认按 `symbol` 分组。
+- 截面排序 `RANK` 按 `date` 分组。
+- `SMA(X,N,M)` 采用通达信定义：`Y=(M*X+(N-M)*Y')/N`。
+- `CROSS(A,B)` 定义为当期 `A>B` 且上期 `A<=B`。
+- `EVERY/EXIST` 在窗口不足时返回 `False`（非 `NaN`）。
 
 ### 3.1.3 winsorize_3sigma(self, factor: pd.Series, n: int = 3) -> pd.Series
 
@@ -477,12 +522,8 @@ from src.factor_engine import Factor
 
 class DemoFactor(Factor):
 	def caculate(self):
-		# 20日均换手 / 当日换手
-		return (
-			self.data["turnover_rate"]
-			.groupby(level="symbol")
-			.transform(lambda x: x.rolling(20).mean() / x)
-		)
+		# 公式写法：无需在表达式里写 self.
+		return self.FORMULA("MA(TURNOVER_RATE, 20) / TURNOVER_RATE")
 
 data = pd.read_parquet("./data/stocks_daily.parquet")
 data = data.set_index(["date", "symbol"]).sort_index()
@@ -491,7 +532,36 @@ f = DemoFactor("demo", data)
 print(f.caculate().dropna().head())
 ```
 
-### 6.8 winsorize_3sigma / winsorize_mad / standardize_zscore
+### 6.8 FORMULA / BIND 示例
+
+```python
+class DemoFactor2(Factor):
+	def caculate(self):
+		# 方式1：字符串公式
+		f1 = self.FORMULA("EMA(CLOSE, 12) - EMA(CLOSE, 26)")
+
+		# 方式2：先绑定再调用
+		MA, CLOSE, RANK = self.BIND("MA", "CLOSE", "RANK")
+		f2 = RANK(CLOSE / MA(CLOSE, 20))
+
+		return f1 + f2
+```
+
+### 6.9 通达信风格函数示例
+
+```python
+# 近20日最高/最低区间位置
+pos = (f.HHV(f.CLOSE, 20) - f.CLOSE) / (f.HHV(f.CLOSE, 20) - f.LLV(f.CLOSE, 20))
+
+# 上穿信号（布尔序列）
+signal = f.CROSS(f.MA(f.CLOSE, 5), f.MA(f.CLOSE, 20))
+
+# 最近5天至少3天上涨
+up_days = f.COUNT(f.CLOSE > f.REF(f.CLOSE, 1), 5)
+cond = up_days >= 3
+```
+
+### 6.10 winsorize_3sigma / winsorize_mad / standardize_zscore
 
 ```python
 factor_raw = f.caculate().dropna()
@@ -506,7 +576,7 @@ print(w2.head())
 print(z.head())
 ```
 
-### 6.9 _prepare_factor_values
+### 6.11 _prepare_factor_values
 
 ```python
 prepared = f._prepare_factor_values(
@@ -517,7 +587,7 @@ prepared = f._prepare_factor_values(
 print(prepared.dropna().head())
 ```
 
-### 6.10 get_clean_factor_and_forward_returns
+### 6.12 get_clean_factor_and_forward_returns
 
 ```python
 result = f.get_clean_factor_and_forward_returns(
@@ -530,7 +600,7 @@ result = f.get_clean_factor_and_forward_returns(
 print(result.head())
 ```
 
-### 6.11 caculate_daily_ic / ic_statistics_analysis / ic_mean_t_test
+### 6.13 caculate_daily_ic / ic_statistics_analysis / ic_mean_t_test
 
 ```python
 daily_ic = f.caculate_daily_ic(result)
@@ -542,7 +612,7 @@ print(ic_stats)
 print(ic_t)
 ```
 
-### 6.12 calculate_daily_group_ret / calculate_long_short / performance_analysis / calculate_all_group_performance
+### 6.14 calculate_daily_group_ret / calculate_long_short / performance_analysis / calculate_all_group_performance
 
 ```python
 group_ret = f.calculate_daily_group_ret(result)
@@ -556,7 +626,7 @@ print(group_perf.head())
 print(ls_perf_check)
 ```
 
-### 6.13 calculate_group_turnover / calculate_group_turnover_stats
+### 6.15 calculate_group_turnover / calculate_group_turnover_stats
 
 ```python
 group_turnover = f.calculate_group_turnover(result)
@@ -566,7 +636,7 @@ print(group_turnover.head())
 print(group_turnover_stats)
 ```
 
-### 6.14 calculate_factor_turnover_rate / factor_turnover_stats
+### 6.16 calculate_factor_turnover_rate / factor_turnover_stats
 
 ```python
 factor_values = f._prepare_factor_values(winsorize="3sigma", standardize=True).dropna()
@@ -577,14 +647,14 @@ print(factor_turnover.dropna().head())
 print(factor_turnover_stats)
 ```
 
-### 6.15 calculate_turnover_return_correlation
+### 6.17 calculate_turnover_return_correlation
 
 ```python
 corr_series = f.calculate_turnover_return_correlation(group_turnover, group_ret)
 print(corr_series)
 ```
 
-### 6.16 calculate_net_returns_with_cost
+### 6.18 calculate_net_returns_with_cost
 
 ```python
 group_net_ret, ls_gross_ret, ls_net_ret, ls_net_perf = f.calculate_net_returns_with_cost(
@@ -599,7 +669,7 @@ print(ls_net_ret.head())
 print(ls_net_perf)
 ```
 
-### 6.17 图表函数最小调用
+### 6.19 图表函数最小调用
 
 ```python
 chart1 = f.plot_ic_time_series(daily_ic)
@@ -617,7 +687,7 @@ for c in [chart1, chart2, chart3, chart4, chart5, chart6, chart7, chart8, chart9
 	print(type(c))
 ```
 
-### 6.18 create_factor_analysis_report
+### 6.20 create_factor_analysis_report
 
 ```python
 f.create_factor_analysis_report(

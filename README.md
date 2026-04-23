@@ -110,6 +110,25 @@ d.merge()
 
 你需要定义一个继承 Factor 的子类，并实现 caculate 方法返回 MultiIndex(date, symbol) 的因子值 Series。
 
+### 5.1 公式写法（推荐）
+
+`Factor` 已内置常用字段别名与公式函数，可直接用 `FORMULA("MA(CLOSE, 20)")` 风格，不必在表达式里写 `self.`。
+
+```python
+class my_factor(Factor):
+    def caculate(self):
+        return self.FORMULA("MA(CLOSE, 20) / CLOSE - 1")
+```
+
+如果不想写字符串，也可先绑定后调用：
+
+```python
+class my_factor(Factor):
+    def caculate(self):
+        MA, CLOSE = self.BIND("MA", "CLOSE")
+        return MA(CLOSE, 20) / CLOSE - 1
+```
+
 示例（项目内置）：
 
 ```python
@@ -131,6 +150,23 @@ ma_factor.create_factor_analysis_report(
 	transaction_cost_bps=10,
 )
 ```
+
+### 5.2 已内置字段（大写）
+
+- OPEN, HIGH, LOW, CLOSE
+- PRE_CLOSE, CHANGE, PCT_CHG
+- VOLUME, AMOUNT, ADJ_FACTOR
+- TURNOVER_RATE, TURNOVER_RATE_F, VOLUME_RATIO
+- PE, PE_TTM, PB, PS, PS_TTM
+- DV_RATIO, DV_TTM
+- TOTAL_SHARE, FLOAT_SHARE, FREE_SHARE
+- TOTAL_MV, CIRC_MV
+
+### 5.3 已内置公式函数
+
+- 基础：MA, EMA, RANK, REF, DELTA, STD, SUM
+- 通达信风格：ABS, MAX, MIN, IF, COUNT, EVERY, EXIST, HHV, LLV, TSRANK, SMA, CROSS
+- 数学：LOG, EXP, SQRT
 
 ## 6. 关键参数说明
 
@@ -180,3 +216,15 @@ ma_factor.create_factor_analysis_report(
 - 首次全量下载耗时较长，建议先缩小时间区间调试。
 - stocks_daily 下载过程可能因网络抖动失败，代码内已做重试。
 - 因子计算请保证索引与价格数据严格对齐（date, symbol）。
+
+## 10. 日志与测试
+
+- `src/config.py` 导入时会初始化日志到仓库根目录 `debug.log`。
+- 因子计算链路（公式执行、预处理、报告生成）已增加日志打点，异常会记录 traceback，便于定位。
+- 公式函数测试文件：`tests/test_formula_functions.py`
+
+在项目根目录运行测试：
+
+```bash
+.\.venv\Scripts\python -m unittest tests/test_formula_functions.py
+```
