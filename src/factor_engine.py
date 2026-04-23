@@ -448,6 +448,166 @@ class Factor(ABC):
         group_ret.columns = [f"组{int(i)}" for i in group_ret.columns]
         return group_ret
 
+    def calculate_group_turnover(self, result: pd.DataFrame) -> pd.DataFrame:
+        """计算各因子分组的日度持仓换手率。
+
+        换手率定义为：1 - 前后两日持仓重合比例。
+
+        Args:
+            result: get_clean_factor_and_forward_returns 返回的 DataFrame
+
+        Returns:
+            日期为行索引、分组为列的换手率 DataFrame
+        """
+        members = (
+            result.reset_index()[["date", "symbol", "factor_quantile"]]
+            .dropna(subset=["factor_quantile"])
+            .copy()
+        )
+        quantiles = sorted(members["factor_quantile"].unique())
+
+        turnover_map: dict[str, pd.Series] = {}
+        for q in quantiles:
+            by_date = (
+                members[members["factor_quantile"] == q]
+                .groupby("date")["symbol"]
+                .apply(set)
+                .sort_index()
+            )
+
+            prev_set: set[str] | None = None
+            values: list[float] = []
+            for cur_set in by_date:
+                if prev_set is None or len(prev_set) == 0:
+                    values.append(np.nan)
+                else:
+                    overlap = len(cur_set & prev_set)
+                    values.append(1 - overlap / len(prev_set))
+                prev_set = cur_set
+
+            turnover_map[f"组{int(q)}"] = pd.Series(values, index=by_date.index)
+
+        return pd.DataFrame(turnover_map).sort_index()
+
+    def calculate_group_turnover_stats(
+        self, group_turnover: pd.DataFrame
+    ) -> pd.DataFrame:
+        """汇总分组换手率统计。"""
+        return pd.DataFrame(
+            {
+                "平均换手率": group_turnover.mean(),
+                "换手率标准差": group_turnover.std(),
+                "P25": group_turnover.quantile(0.25),
+                "P50": group_turnover.quantile(0.50),
+                "P75": group_turnover.quantile(0.75),
+            }
+        ).round(4)
+
+    def calculate_factor_turnover_rate(self, factor: pd.Series) -> pd.Series:
+        """计算因子整体换手率（1 - 截面秩自相关）。
+
+        Args:
+            factor: 预处理后的因子值，索引为 (date, symbol)
+
+        Returns:
+            因子换手率序列，索引为 date
+        """
+        factor_wide = factor.unstack("symbol").sort_index()
+        factor_rank = factor_wide.rank(axis=1, pct=True)
+
+        rank_autocorr = pd.Series(index=factor_rank.index, dtype=float)
+        prev = factor_rank.shift(1)
+        for dt in factor_rank.index:
+            cur_row = factor_rank.loc[dt]
+            prev_row = prev.loc[dt]
+            pair = pd.concat([cur_row, prev_row], axis=1, keys=["cur", "prev"]).dropna()
+            if pair.empty or pair["cur"].nunique() < 2 or pair["prev"].nunique() < 2:
+                rank_autocorr.loc[dt] = np.nan
+            else:
+                rank_autocorr.loc[dt] = pair["cur"].corr(
+                    pair["prev"], method="spearman"
+                )
+
+        turnover = 1 - rank_autocorr
+        turnover.name = "因子换手率"
+        return turnover
+
+    def factor_turnover_stats(self, factor_turnover: pd.Series) -> pd.Series:
+        """汇总因子换手率统计。"""
+        return pd.Series(
+            {
+                "平均换手率": round(float(factor_turnover.mean()), 4),
+                "换手率标准差": round(float(factor_turnover.std()), 4),
+                "P25": round(float(factor_turnover.quantile(0.25)), 4),
+                "P50": round(float(factor_turnover.quantile(0.50)), 4),
+                "P75": round(float(factor_turnover.quantile(0.75)), 4),
+            }
+        )
+
+    def calculate_turnover_return_correlation(
+        self, group_turnover: pd.DataFrame, group_ret: pd.DataFrame
+    ) -> pd.Series:
+        """计算各分组换手率与分组收益的相关系数。"""
+        aligned_turnover, aligned_ret = group_turnover.align(
+            group_ret, join="inner", axis=0
+        )
+        common_cols = aligned_turnover.columns.intersection(aligned_ret.columns)
+
+        corr_dict: dict[str, float] = {}
+        for col in common_cols:
+            pair = pd.concat(
+                [aligned_turnover[col], aligned_ret[col]],
+                axis=1,
+                keys=["turnover", "ret"],
+            ).dropna()
+            if len(pair) < 3:
+                corr_dict[col] = np.nan
+            else:
+                corr_dict[col] = pair["turnover"].corr(pair["ret"])
+        return pd.Series(corr_dict, name="换手率收益相关系数").round(4)
+
+    def calculate_net_returns_with_cost(
+        self,
+        group_ret: pd.DataFrame,
+        group_turnover: pd.DataFrame,
+        cost_bps: float = 10,
+    ) -> tuple[pd.DataFrame, pd.Series, pd.Series, pd.Series]:
+        """按换手率扣除交易成本后，计算分组与多空净收益。
+
+        Args:
+            group_ret: 每日分组收益
+            group_turnover: 每日分组换手率
+            cost_bps: 单边交易成本（bps）
+
+        Returns:
+            (分组净收益, 多空毛收益, 多空净收益, 多空净绩效)
+        """
+        cost_rate = cost_bps / 10000
+        aligned_turnover, aligned_ret = group_turnover.align(
+            group_ret, join="inner", axis=0
+        )
+        common_cols = aligned_turnover.columns.intersection(aligned_ret.columns)
+
+        group_net_ret = (
+            aligned_ret[common_cols] - aligned_turnover[common_cols] * cost_rate
+        )
+
+        ordered_cols = sorted(
+            common_cols, key=lambda x: float(str(x).replace("组", ""))
+        )
+        low_col = ordered_cols[0]
+        high_col = ordered_cols[-1]
+
+        long_short_gross = aligned_ret[high_col] - aligned_ret[low_col]
+        long_short_net = (
+            long_short_gross
+            - (aligned_turnover[high_col] + aligned_turnover[low_col]) * cost_rate
+        )
+        long_short_net_perf = self.performance_analysis(long_short_net)
+        long_short_net_perf.name = f"多空净收益({high_col}-{low_col}, {cost_bps}bps)"
+
+        return group_net_ret, long_short_gross, long_short_net, long_short_net_perf
+
     def performance_analysis(self, ret_series: pd.Series, period: int = 1) -> pd.Series:
         """计算单组收益的核心量化指标。
 
@@ -613,6 +773,151 @@ class Factor(ABC):
 
         return line
 
+    def plot_group_turnover(self, group_turnover: pd.DataFrame) -> Line:
+        """绘制分组换手率时序图。"""
+        x_data = group_turnover.index.strftime("%Y-%m-%d").tolist()
+
+        line = Line(init_opts=opts.InitOpts(theme=ThemeType.WESTEROS))
+        line.add_xaxis(xaxis_data=x_data)
+
+        ordered_cols = sorted(
+            group_turnover.columns, key=lambda x: float(str(x).replace("组", ""))
+        )
+        for col in ordered_cols:
+            line.add_yaxis(
+                series_name=col,
+                y_axis=group_turnover[col].round(4).tolist(),
+                symbol=None,
+                label_opts=opts.LabelOpts(is_show=False),
+            )
+
+        line.set_global_opts(
+            title_opts=opts.TitleOpts(title="因子分组换手率时序图"),
+            tooltip_opts=opts.TooltipOpts(trigger="axis"),
+            yaxis_opts=opts.AxisOpts(name="换手率"),
+            legend_opts=opts.LegendOpts(pos_left="center", pos_top="7%"),
+            datazoom_opts=[opts.DataZoomOpts(), opts.DataZoomOpts(type_="inside")],
+        )
+        return line
+
+    def plot_group_turnover_bar(self, turnover_stats: pd.DataFrame) -> Bar:
+        """绘制分组平均换手率柱状图。"""
+        bar = Bar(init_opts=opts.InitOpts(theme=ThemeType.WESTEROS))
+        bar.add_xaxis(turnover_stats.index.tolist())
+        bar.add_yaxis(
+            "平均换手率",
+            turnover_stats["平均换手率"].tolist(),
+            label_opts=opts.LabelOpts(is_show=False),
+        )
+        bar.set_global_opts(
+            title_opts=opts.TitleOpts(title="因子分组平均换手率"),
+            xaxis_opts=opts.AxisOpts(name="因子分组"),
+            yaxis_opts=opts.AxisOpts(name="平均换手率"),
+        )
+        return bar
+
+    def plot_factor_turnover(self, factor_turnover: pd.Series) -> Line:
+        """绘制因子整体换手率时序图。"""
+        clean_turnover = factor_turnover.dropna()
+        x_data = clean_turnover.index.strftime("%Y-%m-%d").tolist()
+        y_data = clean_turnover.round(4).tolist()
+
+        line = Line(init_opts=opts.InitOpts(theme=ThemeType.WESTEROS))
+        line.add_xaxis(xaxis_data=x_data)
+        line.add_yaxis(
+            series_name="因子换手率",
+            y_axis=y_data,
+            symbol=None,
+            label_opts=opts.LabelOpts(is_show=False),
+            linestyle_opts=opts.LineStyleOpts(width=2, color="#1F77B4"),
+        )
+        if len(y_data) > 0:
+            line.add_yaxis(
+                series_name="平均换手率",
+                y_axis=[round(float(clean_turnover.mean()), 4)] * len(y_data),
+                symbol=None,
+                label_opts=opts.LabelOpts(is_show=False),
+                linestyle_opts=opts.LineStyleOpts(width=1, color="red", type_="dashed"),
+            )
+
+        line.set_global_opts(
+            title_opts=opts.TitleOpts(title="因子整体换手率时序图"),
+            tooltip_opts=opts.TooltipOpts(trigger="axis"),
+            yaxis_opts=opts.AxisOpts(name="换手率"),
+            legend_opts=opts.LegendOpts(pos_left="center", pos_top="7%"),
+            datazoom_opts=[opts.DataZoomOpts(), opts.DataZoomOpts(type_="inside")],
+        )
+        return line
+
+    def plot_turnover_return_correlation(self, corr_series: pd.Series) -> Bar:
+        """绘制分组换手率与收益相关系数柱状图。"""
+        bar = Bar(init_opts=opts.InitOpts(theme=ThemeType.WESTEROS))
+        if corr_series.empty:
+            bar.add_xaxis(["无有效数据"])
+            bar.add_yaxis("相关系数", [0], label_opts=opts.LabelOpts(is_show=False))
+        else:
+            bar.add_xaxis(corr_series.index.tolist())
+            bar.add_yaxis(
+                "相关系数",
+                corr_series.fillna(0).tolist(),
+                label_opts=opts.LabelOpts(is_show=False),
+            )
+
+        bar.set_global_opts(
+            title_opts=opts.TitleOpts(title="分组换手率与收益相关系数"),
+            xaxis_opts=opts.AxisOpts(name="因子分组"),
+            yaxis_opts=opts.AxisOpts(name="相关系数", min_=-1, max_=1),
+        )
+        return bar
+
+    def plot_long_short_net_vs_gross(
+        self,
+        long_short_gross: pd.Series,
+        long_short_net: pd.Series,
+        cost_bps: float,
+    ) -> Line:
+        """绘制多空毛收益与净收益累计曲线。"""
+        aligned = pd.concat(
+            [long_short_gross, long_short_net],
+            axis=1,
+            keys=["毛收益", "净收益"],
+        ).dropna()
+
+        gross_cum = (1 + aligned["毛收益"]).cumprod().round(4)
+        net_cum = (1 + aligned["净收益"]).cumprod().round(4)
+        cost_drag = (gross_cum - net_cum).round(4)
+
+        x_data = aligned.index.strftime("%Y-%m-%d").tolist()
+        line = Line(init_opts=opts.InitOpts(theme=ThemeType.WESTEROS))
+        line.add_xaxis(xaxis_data=x_data)
+        line.add_yaxis(
+            series_name="多空毛收益累计",
+            y_axis=gross_cum.tolist(),
+            symbol=None,
+            label_opts=opts.LabelOpts(is_show=False),
+        )
+        line.add_yaxis(
+            series_name=f"多空净收益累计({cost_bps}bps)",
+            y_axis=net_cum.tolist(),
+            symbol=None,
+            label_opts=opts.LabelOpts(is_show=False),
+            linestyle_opts=opts.LineStyleOpts(width=2, color="#D9534F"),
+        )
+        line.add_yaxis(
+            series_name="累计成本拖累",
+            y_axis=cost_drag.tolist(),
+            symbol=None,
+            label_opts=opts.LabelOpts(is_show=False),
+            linestyle_opts=opts.LineStyleOpts(width=1, type_="dashed", color="black"),
+        )
+        line.set_global_opts(
+            title_opts=opts.TitleOpts(title="多空毛净收益对比曲线"),
+            tooltip_opts=opts.TooltipOpts(trigger="axis"),
+            legend_opts=opts.LegendOpts(pos_left="center", pos_top="7%"),
+            datazoom_opts=[opts.DataZoomOpts(), opts.DataZoomOpts(type_="inside")],
+        )
+        return line
+
     def create_factor_analysis_report(
         self,
         quantiles: int = 5,
@@ -620,6 +925,7 @@ class Factor(ABC):
         winsorize: str | None = None,
         winsorize_param: float = 3,
         standardize: bool = False,
+        transaction_cost_bps: float = 10,
     ) -> None:
         """生成完整的因子分析报告，包含 IC 时序、分组收益、多空组合等图表。
 
@@ -629,6 +935,7 @@ class Factor(ABC):
             winsorize: 去极值方法，"3sigma" 或 "mad"，None 跳过
             winsorize_param: 去极值参数（默认3）
             standardize: 是否做 Z-score 标准化（默认 False）
+            transaction_cost_bps: 单边交易成本（bps，默认10）
         """
         result = self.get_clean_factor_and_forward_returns(
             quantiles, period, winsorize, winsorize_param, standardize
@@ -639,6 +946,26 @@ class Factor(ABC):
         daily_ic = self.caculate_daily_ic(result)
         ic_stats = self.ic_statistics_analysis(daily_ic)
         ic_t = self.ic_mean_t_test(daily_ic)
+        group_turnover = self.calculate_group_turnover(result)
+        group_turnover_stats = self.calculate_group_turnover_stats(group_turnover)
+        factor_values = self._prepare_factor_values(
+            winsorize=winsorize,
+            winsorize_param=winsorize_param,
+            standardize=standardize,
+        ).dropna()
+        factor_turnover = self.calculate_factor_turnover_rate(factor_values)
+        factor_turnover_summary = self.factor_turnover_stats(factor_turnover)
+        turnover_ret_corr = self.calculate_turnover_return_correlation(
+            group_turnover, daily_group_ret
+        )
+        group_net_ret, ls_gross_ret, ls_net_ret, ls_net_perf = (
+            self.calculate_net_returns_with_cost(
+                daily_group_ret,
+                group_turnover,
+                cost_bps=transaction_cost_bps,
+            )
+        )
+        group_net_perf = self.calculate_all_group_performance(group_net_ret, period)
         alpha_check = self.validate_metrics_with_alphalens(
             quantiles=quantiles,
             period=period,
@@ -652,12 +979,26 @@ class Factor(ABC):
         page.add(self.plot_ic_cumulative(daily_ic))
         page.add(self.plot_group_annual_bar(group_perf))
         page.add(self.plot_ic_histogram(daily_ic))
+        page.add(self.plot_group_turnover(group_turnover))
+        page.add(self.plot_group_turnover_bar(group_turnover_stats))
+        page.add(self.plot_factor_turnover(factor_turnover))
+        page.add(self.plot_turnover_return_correlation(turnover_ret_corr))
+        page.add(
+            self.plot_long_short_net_vs_gross(
+                ls_gross_ret, ls_net_ret, cost_bps=transaction_cost_bps
+            )
+        )
         page.render("./output/因子分析报告.html")
 
         print("\n分组绩效指标\n", group_perf)
         print("\n多空组合指标\n", ls_perf)
         print("\nIC统计指标\n", ic_stats)
         print("\nIC T检验\n", ic_t)
+        print("\n分组换手率统计\n", group_turnover_stats)
+        print("\n因子换手率统计\n", factor_turnover_summary)
+        print("\n换手率与收益相关系数\n", turnover_ret_corr)
+        print(f"\n分组净绩效指标(扣{transaction_cost_bps}bps)\n", group_net_perf)
+        print(f"\n多空净绩效指标(扣{transaction_cost_bps}bps)\n", ls_net_perf)
         print("\nAlphalens对照校验\n", alpha_check)
 
 
@@ -666,9 +1007,9 @@ if __name__ == "__main__":
     class ma(Factor):
         def caculate(self):
             return (
-                self.data["pe_ttm"]
+                self.data["turnover_rate"]
                 .groupby(level="symbol")
-                .transform(lambda x: x.rolling(20).mean())
+                .transform(lambda x: x.rolling(20).mean() / x)
             )
 
     from config import db_path
@@ -678,4 +1019,9 @@ if __name__ == "__main__":
     data = data.set_index(["date", "symbol"]).sort_index()
     data["close"] = data["close"] * data["adj_factor"]
     ma_factor = ma("ma", data)
-    ma_factor.create_factor_analysis_report(winsorize="3sigma", standardize=True)
+    transaction_cost_bps = 10
+    ma_factor.create_factor_analysis_report(
+        winsorize="3sigma",
+        standardize=True,
+        transaction_cost_bps=transaction_cost_bps,
+    )
