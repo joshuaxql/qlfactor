@@ -2,10 +2,18 @@ from abc import ABC, abstractmethod
 import pandas as pd
 from datetime import datetime
 import numpy as np
+import warnings
 from pyecharts.charts import Line, Bar, Page
 from pyecharts import options as opts
 from pyecharts.globals import ThemeType
 from scipy import stats
+
+try:
+    import alphalens as al
+    from alphalens import performance as al_performance
+except ImportError:
+    al = None
+    al_performance = None
 
 
 class Factor(ABC):
@@ -78,6 +86,29 @@ class Factor(ABC):
             return pd.Series(0.0, index=factor.index)
         return (factor - factor.mean()) / std
 
+    def _prepare_factor_values(
+        self,
+        winsorize: str | None = None,
+        winsorize_param: float = 3,
+        standardize: bool = False,
+    ) -> pd.Series:
+        """对原始因子值做去极值和标准化处理。"""
+        factor = self.caculate()
+
+        if winsorize == "3sigma":
+            factor = factor.groupby(level="date").transform(
+                lambda x: self.winsorize_3sigma(x, winsorize_param)
+            )
+        elif winsorize == "mad":
+            factor = factor.groupby(level="date").transform(
+                lambda x: self.winsorize_mad(x, winsorize_param)
+            )
+
+        if standardize:
+            factor = factor.groupby(level="date").transform(self.standardize_zscore)
+
+        return factor
+
     def get_clean_factor_and_forward_returns(
         self,
         quantiles: int = 5,
@@ -99,22 +130,8 @@ class Factor(ABC):
             干净的长格式 DataFrame，列包含：
             date, symbol, factor, next_ret, factor_quantile
         """
-        # 1. 获取因子值
-        factor = self.caculate()
-
-        # 2. 去极值
-        if winsorize == "3sigma":
-            factor = factor.groupby(level="date").transform(
-                lambda x: self.winsorize_3sigma(x, winsorize_param)
-            )
-        elif winsorize == "mad":
-            factor = factor.groupby(level="date").transform(
-                lambda x: self.winsorize_mad(x, winsorize_param)
-            )
-
-        # 3. 标准化
-        if standardize:
-            factor = factor.groupby(level="date").transform(self.standardize_zscore)
+        # 1. 获取并预处理因子值
+        factor = self._prepare_factor_values(winsorize, winsorize_param, standardize)
 
         # 4. 获取价格数据用于计算远期收益
         price = self.data["close"]
@@ -123,9 +140,8 @@ class Factor(ABC):
         result = pd.DataFrame({"factor": factor, "close": price})
 
         # 6. 计算远期收益
-        result["next_ret"] = (
-            result["close"].groupby(level="symbol").pct_change(period).shift(-period)
-        )
+        ret = result["close"].groupby(level="symbol").pct_change(period)
+        result["next_ret"] = ret.groupby(level="symbol").shift(-period)
 
         # 7. 清洗：去除NaN
         result = result.dropna()
@@ -137,6 +153,130 @@ class Factor(ABC):
 
         return result
 
+    def validate_metrics_with_alphalens(
+        self,
+        quantiles: int = 5,
+        period: int = 1,
+        winsorize: str | None = None,
+        winsorize_param: float = 3,
+        standardize: bool = False,
+    ) -> pd.Series:
+        """使用 Alphalens 对照校验核心指标，辅助判断自实现结果是否正确。"""
+        if al is None or al_performance is None:
+            return pd.Series(
+                {
+                    "校验状态": "跳过",
+                    "原因": "未安装alphalens，无法进行对照校验",
+                }
+            )
+
+        factor = self._prepare_factor_values(winsorize, winsorize_param, standardize)
+        factor = factor.dropna().sort_index()
+        pricing = self.data["close"].unstack("symbol").sort_index()
+
+        try:
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message="The default fill_method='pad' in DataFrame.pct_change is deprecated",
+                    category=FutureWarning,
+                )
+                alpha_data = al.utils.get_clean_factor_and_forward_returns(
+                    factor=factor,
+                    prices=pricing,
+                    quantiles=quantiles,
+                    periods=(period,),
+                    max_loss=1,
+                )
+        except Exception as exc:
+            return pd.Series(
+                {
+                    "校验状态": "失败",
+                    "原因": f"alphalens清洗失败: {exc}",
+                }
+            )
+
+        result = self.get_clean_factor_and_forward_returns(
+            quantiles=quantiles,
+            period=period,
+            winsorize=winsorize,
+            winsorize_param=winsorize_param,
+            standardize=standardize,
+        )
+        custom_daily_ic = self.caculate_daily_ic(result).dropna()
+
+        alpha_ic_df = al_performance.factor_information_coefficient(alpha_data)
+        alpha_period_col = (
+            f"{period}D"
+            if f"{period}D" in alpha_ic_df.columns
+            else alpha_ic_df.columns[0]
+        )
+        alpha_daily_ic = alpha_ic_df[alpha_period_col].dropna()
+
+        common_ic_idx = custom_daily_ic.index.intersection(alpha_daily_ic.index)
+        if len(common_ic_idx) >= 2:
+            ic_diff = (
+                custom_daily_ic.loc[common_ic_idx] - alpha_daily_ic.loc[common_ic_idx]
+            ).abs()
+            ic_mae = float(ic_diff.mean())
+            ic_corr = float(
+                custom_daily_ic.loc[common_ic_idx].corr(
+                    alpha_daily_ic.loc[common_ic_idx]
+                )
+            )
+        else:
+            ic_mae = np.nan
+            ic_corr = np.nan
+
+        alpha_qret, _ = al_performance.mean_return_by_quantile(
+            alpha_data,
+            by_date=True,
+            demeaned=False,
+            group_adjust=False,
+        )
+        alpha_group_ret = alpha_qret[alpha_period_col].unstack("factor_quantile")
+        alpha_group_ret.columns = [f"组{int(i)}" for i in alpha_group_ret.columns]
+
+        custom_group_ret = self.calculate_daily_group_ret(result)
+        common_group_idx = custom_group_ret.index.intersection(alpha_group_ret.index)
+        common_group_cols = custom_group_ret.columns.intersection(
+            alpha_group_ret.columns
+        )
+
+        if len(common_group_idx) > 0 and len(common_group_cols) > 0:
+            group_diff = (
+                custom_group_ret.loc[common_group_idx, common_group_cols]
+                - alpha_group_ret.loc[common_group_idx, common_group_cols]
+            ).abs()
+            group_mae = float(group_diff.stack().mean())
+        else:
+            group_mae = np.nan
+
+        verdict = "通过"
+        # Alphalens 在缺失值处理和排序细节上可能与自实现存在极小差异，使用容差避免误判。
+        if (not np.isnan(ic_mae) and ic_mae > 1e-3) or (
+            not np.isnan(group_mae) and group_mae > 1e-4
+        ):
+            verdict = "需复核"
+
+        return pd.Series(
+            {
+                "校验状态": verdict,
+                "IC均值(自实现)": round(float(custom_daily_ic.mean()), 6),
+                "IC均值(Alphalens)": round(float(alpha_daily_ic.mean()), 6),
+                "IC序列相关系数": (
+                    round(ic_corr, 6) if not np.isnan(ic_corr) else np.nan
+                ),
+                "IC序列平均绝对误差": (
+                    round(ic_mae, 8) if not np.isnan(ic_mae) else np.nan
+                ),
+                "分组收益平均绝对误差": (
+                    round(group_mae, 8) if not np.isnan(group_mae) else np.nan
+                ),
+                "IC对齐样本数": int(len(common_ic_idx)),
+            }
+        )
+
     def caculate_daily_ic(self, result: pd.DataFrame) -> pd.Series:
         """计算每日 IC（Rank IC，Spearman 相关系数）。
 
@@ -146,6 +286,7 @@ class Factor(ABC):
         Returns:
             每日 IC Series，索引为 date
         """
+
         def _safe_spearman(x: pd.DataFrame) -> float:
             fac = x["factor"]
             ret = x["next_ret"]
@@ -498,6 +639,13 @@ class Factor(ABC):
         daily_ic = self.caculate_daily_ic(result)
         ic_stats = self.ic_statistics_analysis(daily_ic)
         ic_t = self.ic_mean_t_test(daily_ic)
+        alpha_check = self.validate_metrics_with_alphalens(
+            quantiles=quantiles,
+            period=period,
+            winsorize=winsorize,
+            winsorize_param=winsorize_param,
+            standardize=standardize,
+        )
         page = Page(page_title="因子分析报告", layout=Page.SimplePageLayout)
         page.add(self.plot_group_cumulative_return(daily_group_ret, ls_ret))
         page.add(self.plot_ic_time_series(daily_ic))
@@ -510,6 +658,7 @@ class Factor(ABC):
         print("\n多空组合指标\n", ls_perf)
         print("\nIC统计指标\n", ic_stats)
         print("\nIC T检验\n", ic_t)
+        print("\nAlphalens对照校验\n", alpha_check)
 
 
 if __name__ == "__main__":
@@ -517,9 +666,9 @@ if __name__ == "__main__":
     class ma(Factor):
         def caculate(self):
             return (
-                self.data["turnover_rate"]
+                self.data["pe_ttm"]
                 .groupby(level="symbol")
-                .transform(lambda x: -x.rolling(20).mean() / x)
+                .transform(lambda x: x.rolling(20).mean())
             )
 
     from config import db_path
