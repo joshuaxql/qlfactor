@@ -1,27 +1,15 @@
 from config import pro, db_path
-import duckdb
 import pandas as pd
 from datetime import datetime
 from tqdm import tqdm
+import os
+from concurrent.futures import ProcessPoolExecutor
 
 
 class Download:
     def __init__(self, pro, db_path: str) -> None:
         self.pro = pro
         self.db_path = db_path
-        self.con = duckdb.connect(db_path + "stocks_data.duckdb")
-
-    def ts_change(self, ts_code: str) -> str:
-        if ts_code.endswith(".SZ"):
-            return "sz" + ts_code[:6]
-        elif ts_code.endswith(".SH"):
-            return "sh" + ts_code[:6]
-        elif ts_code.endswith(".ICS"):
-            return "ics" + ts_code[:6]
-        elif ts_code.endswith(".BJ"):
-            return "bj" + ts_code[:6]
-        else:
-            raise (f"{ts_code}格式错误")
 
     def calendar(self) -> None:
         calendar = pro.trade_cal(
@@ -33,21 +21,32 @@ class Download:
         )
         calendar["cal_date"] = pd.to_datetime(calendar["cal_date"], format="%Y%m%d")
         calendar = calendar.iloc[::-1]
-        calendar.to_parquet(self.db_path + "calendar.parquet")
+        calendar.to_parquet(self.db_path + "calendar.parquet", index=False)
 
     def stocks_info(self) -> None:
-        stocks_info_L = pro.stock_basic(list_status="L")
-        stocks_info_D = pro.stock_basic(list_status="D")
-        stocks_info_P = pro.stock_basic(list_status="P")
+        SSE_stocks_info_L = pro.stock_basic(exchange="SSE", list_status="L")
+        SSE_stocks_info_D = pro.stock_basic(exchange="SSE", list_status="D")
+        SSE_stocks_info_P = pro.stock_basic(exchange="SSE", list_status="P")
+        SZSE_stocks_info_L = pro.stock_basic(exchange="SZSE", list_status="L")
+        SZSE_stocks_info_D = pro.stock_basic(exchange="SZSE", list_status="D")
+        SZSE_stocks_info_P = pro.stock_basic(exchange="SZSE", list_status="P")
         stocks_info = pd.concat(
-            [stocks_info_L, stocks_info_D, stocks_info_P], ignore_index=True
+            [
+                SSE_stocks_info_L,
+                SSE_stocks_info_D,
+                SSE_stocks_info_P,
+                SZSE_stocks_info_L,
+                SZSE_stocks_info_D,
+                SZSE_stocks_info_P,
+            ],
+            ignore_index=True,
         )
         stocks_info.drop(columns=["symbol"], inplace=True)
         stocks_info.rename(columns={"ts_code": "symbol"}, inplace=True)
         stocks_info["list_date"] = pd.to_datetime(
             stocks_info["list_date"], format="%Y%m%d"
         )
-        stocks_info.to_parquet(self.db_path + "stocks_info.parquet")
+        stocks_info.to_parquet(self.db_path + "stocks_info.parquet", index=False)
 
     def stocks_daily(self) -> None:
         end = datetime.now()
@@ -109,15 +108,13 @@ class Download:
                     df["trade_date"] = pd.to_datetime(df["trade_date"], format="%Y%m%d")
                     df = df.sort_values("trade_date")
                     df = pd.merge_asof(
-                        df,  # 左表：行情数据
-                        name_df,  # 右表：名称数据
-                        left_on="trade_date",  # 左表匹配键：交易日期
-                        right_on="start_date",  # 右表匹配键：名称生效日期
-                        by="ts_code",  # 按股票代码分组匹配（多股票必备）
-                        direction="backward",  # 向前匹配：找最近的生效日期
+                        df,
+                        name_df,
+                        left_on="trade_date",
+                        right_on="start_date",
+                        by="ts_code",
+                        direction="backward",
                     )
-                    industry_df = pro.index_member_all(ts_code=stock)
-                    df["industry"] = industry_df["l1_name"].iloc[0]
                     df = df.rename(
                         columns={
                             "ts_code": "symbol",
@@ -130,7 +127,6 @@ class Download:
                             "symbol",
                             "date",
                             "name",
-                            "industry",
                             "open",
                             "high",
                             "low",
@@ -158,17 +154,38 @@ class Download:
                             "circ_mv",
                         ]
                     ]
-                    symbol = self.ts_change(stock)
-                    df["symbol"] = symbol
-                    self.con.execute(
-                        f"CREATE TABLE IF NOT EXISTS {symbol} AS SELECT * FROM df"
+                    df.to_parquet(
+                        self.db_path + f"stocks_daily/{stock}.parquet", index=False
                     )
                     break
                 except Exception as e:
                     print(e)
                     continue
 
+    def merge(self) -> None:
+        files = [
+            os.path.join(db_path + "stocks_daily", f)
+            for f in os.listdir(db_path + "stocks_daily")
+            if f.endswith(".parquet")
+        ]
+
+        with ProcessPoolExecutor() as executor:
+            dfs = list(
+                tqdm(
+                    executor.map(pd.read_parquet, files),
+                    total=len(files),
+                    desc="Reading",
+                )
+            )
+
+        data = pd.concat(dfs, ignore_index=True)
+        data = data.sort_values(["date", "symbol"])
+        data.to_parquet(db_path + "stocks_daily.parquet", index=False)
+
 
 if __name__ == "__main__":
     download = Download(pro, db_path)
-    download.stocks_daily()
+    # download.calendar()
+    # download.stocks_info()
+    # download.stocks_daily()
+    download.merge()
