@@ -356,7 +356,7 @@
   <a href="#12" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1.2 全局对象
+        1.2 数据结构与函数
       
     </span>
   </a>
@@ -392,10 +392,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#211-initself-pro-db_path-str-none" class="md-nav__link">
+  <a href="#211-initself-pro-any-db_path-path-str-none" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.1.1 init(self, pro, db_path: str) -&gt; None
+        2.1.1 init(self, pro: Any, db_path: Path | str) -&gt; None
       
     </span>
   </a>
@@ -403,10 +403,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#212-calendarself-none" class="md-nav__link">
+  <a href="#212-from_configcls-config-config-download" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.1.2 calendar(self) -&gt; None
+        2.1.2 from_config(cls, config: Config) -&gt; Download
       
     </span>
   </a>
@@ -414,10 +414,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#213-stocks_infoself-none" class="md-nav__link">
+  <a href="#213-calendarself-none" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.1.3 stocks_info(self) -&gt; None
+        2.1.3 calendar(self) -&gt; None
       
     </span>
   </a>
@@ -425,10 +425,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#214-stocks_dailyself-none" class="md-nav__link">
+  <a href="#214-stocks_infoself-none" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.1.4 stocks_daily(self) -&gt; None
+        2.1.4 stocks_info(self) -&gt; None
       
     </span>
   </a>
@@ -436,10 +436,43 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#215-mergeself-none" class="md-nav__link">
+  <a href="#215-industryself-level-str-l1-src-str-sw2021-none" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.1.5 merge(self) -&gt; None
+        2.1.5 industry(self, level: str = "L1", src: str = "SW2021") -&gt; None
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#216-stocks_dailyself-basic-bool-true-none" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1.6 stocks_daily(self, basic: bool = True) -&gt; None
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#217-mergeself-none" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1.7 merge(self) -&gt; None
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#218" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1.8 产物清单
       
     </span>
   </a>
@@ -522,10 +555,309 @@
   <a href="#312c" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.1.2C 公式函数（新增）
+        3.1.2C 公式函数详解
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="3.1.2C 公式函数详解">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        基础时序 / 截面算子
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="基础时序 / 截面算子">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#max-n-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MA(x, n, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#emax-n-adjusttrue-min_periods1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EMA(x, n, adjust=True, min_periods=1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rankx-pcttrue-ascendingtrue-methodaverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RANK(x, pct=True, ascending=True, method="average")
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#refx-n1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        REF(x, n=1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deltax-n1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DELTA(x, n=1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stdx-n-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STD(x, n, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sumx-n-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SUM(x, n, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        通达信风格函数
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="通达信风格函数">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#absx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ABS(x)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#maxa-b" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MAX(a, b)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mina-b" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MIN(a, b)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ifcond-a-b" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IF(cond, a, b)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#countcond-n-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COUNT(cond, n, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#everycond-n-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EVERY(cond, n, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#existcond-n-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EXIST(cond, n, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hhvx-n-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HHV(x, n, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#llvx-n-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LLV(x, n, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tsrankx-n-pcttrue-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TSRANK(x, n, pct=True, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#smax-n-m1-min_periods1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SMA(x, n, m=1, min_periods=1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#crossa-b" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CROSS(a, b)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        数学函数
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="数学函数">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#logx-expx-sqrtx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LOG(x) / EXP(x) / SQRT(x)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        速查表
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        易混点提示
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -563,10 +895,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#316-_prepare_factor_valuesself-winsorize-str-none-none-winsorize_param-float-3-standardize-bool-false-pdseries" class="md-nav__link">
+  <a href="#316-_prepare_factor_valuesself-winsorizenone-winsorize_param3-standardizefalse-industry_neutralfalse-market_cap_neutralfalse-industry_coll1_code-market_cap_coltotal_mv-market_cap_logtrue-industry_datanone-adjusttrue-pdseries" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.1.6 _prepare_factor_values(self, winsorize: str | None = None, winsorize_param: float = 3, standardize: bool = False) -&gt; pd.Series
+        3.1.6 _prepare_factor_values(self, winsorize=None, winsorize_param=3, standardize=False, industry_neutral=False, market_cap_neutral=False, industry_col="l1_code", market_cap_col="total_mv", market_cap_log=True, industry_data=None, adjust=True) -&gt; pd.Series
       
     </span>
   </a>
@@ -574,10 +906,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#317-get_clean_factor_and_forward_returnsself-quantiles-int-5-period-int-1-winsorize-str-none-none-winsorize_param-float-3-standardize-bool-false-pddataframe" class="md-nav__link">
+  <a href="#317-get_clean_factor_and_forward_returnsself-quantiles5-period1-winsorizenone-winsorize_param3-standardizefalse-industry_neutralfalse-market_cap_neutralfalse-industry_coll1_code-market_cap_coltotal_mv-market_cap_logtrue-industry_datanone-adjusttrue-pddataframe" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.1.7 get_clean_factor_and_forward_returns(self, quantiles: int = 5, period: int = 1, winsorize: str | None = None, winsorize_param: float = 3, standardize: bool = False) -&gt; pd.DataFrame
+        3.1.7 get_clean_factor_and_forward_returns(self, quantiles=5, period=1, winsorize=None, winsorize_param=3, standardize=False, industry_neutral=False, market_cap_neutral=False, industry_col="l1_code", market_cap_col="total_mv", market_cap_log=True, industry_data=None, adjust=True) -&gt; pd.DataFrame
       
     </span>
   </a>
@@ -838,10 +1170,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#3131-create_factor_analysis_reportself-quantiles-int-5-period-int-1-winsorize-str-none-none-winsorize_param-float-3-standardize-bool-false-transaction_cost_bps-float-10-none" class="md-nav__link">
+  <a href="#3131-create_factor_analysis_reportself-quantiles5-period1-winsorizenone-winsorize_param3-standardizefalse-transaction_cost_bps10-industry_neutralfalse-market_cap_neutralfalse-industry_coll1_code-market_cap_coltotal_mv-market_cap_logtrue-industry_datanone-adjusttrue-output_diroutput-path" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.1.31 create_factor_analysis_report(self, quantiles: int = 5, period: int = 1, winsorize: str | None = None, winsorize_param: float = 3, standardize: bool = False, transaction_cost_bps: float = 10) -&gt; None
+        3.1.31 create_factor_analysis_report(self, quantiles=5, period=1, winsorize=None, winsorize_param=3, standardize=False, transaction_cost_bps=10, industry_neutral=False, market_cap_neutral=False, industry_col="l1_code", market_cap_col="total_mv", market_cap_log=True, industry_data=None, adjust=True, output_dir="./output") -&gt; Path
       
     </span>
   </a>
@@ -899,10 +1231,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#62-downloadinit" class="md-nav__link">
+  <a href="#62-download-from_config" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.2 Download.init
+        6.2 Download（推荐 from_config）
       
     </span>
   </a>
@@ -910,10 +1242,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#63-downloadcalendar" class="md-nav__link">
+  <a href="#63-downloadcalendar-stocks_info-industry-stocks_daily-merge" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.3 Download.calendar
+        6.3 Download.calendar / stocks_info / industry / stocks_daily / merge
       
     </span>
   </a>
@@ -921,10 +1253,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#64-downloadstocks_info" class="md-nav__link">
+  <a href="#64-factor-calculate" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.4 Download.stocks_info
+        6.4 Factor 子类最小实现（对应 calculate）
       
     </span>
   </a>
@@ -932,10 +1264,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#65-downloadstocks_daily" class="md-nav__link">
+  <a href="#65-formula-bind" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.5 Download.stocks_daily
+        6.5 FORMULA / BIND 示例
       
     </span>
   </a>
@@ -943,10 +1275,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#66-downloadmerge" class="md-nav__link">
+  <a href="#66" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.6 Download.merge
+        6.6 通达信风格函数示例
       
     </span>
   </a>
@@ -954,10 +1286,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#67-factor-calculate" class="md-nav__link">
+  <a href="#67-winsorize_3sigma-winsorize_mad-standardize_zscore" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.7 Factor 子类最小实现（对应 calculate）
+        6.7 winsorize_3sigma / winsorize_mad / standardize_zscore
       
     </span>
   </a>
@@ -965,10 +1297,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#68-formula-bind" class="md-nav__link">
+  <a href="#68-_prepare_factor_values" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.8 FORMULA / BIND 示例
+        6.8 _prepare_factor_values
       
     </span>
   </a>
@@ -976,10 +1308,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#69" class="md-nav__link">
+  <a href="#69-get_clean_factor_and_forward_returns" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.9 通达信风格函数示例
+        6.9 get_clean_factor_and_forward_returns
       
     </span>
   </a>
@@ -987,10 +1319,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#610-winsorize_3sigma-winsorize_mad-standardize_zscore" class="md-nav__link">
+  <a href="#610-calculate_daily_ic-ic_statistics_analysis-ic_mean_t_test" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.10 winsorize_3sigma / winsorize_mad / standardize_zscore
+        6.10 calculate_daily_ic / ic_statistics_analysis / ic_mean_t_test
       
     </span>
   </a>
@@ -998,10 +1330,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#611-_prepare_factor_values" class="md-nav__link">
+  <a href="#611-calculate_daily_group_ret-calculate_long_short-performance_analysis-calculate_all_group_performance" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.11 _prepare_factor_values
+        6.11 calculate_daily_group_ret / calculate_long_short / performance_analysis / calculate_all_group_performance
       
     </span>
   </a>
@@ -1009,10 +1341,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#612-get_clean_factor_and_forward_returns" class="md-nav__link">
+  <a href="#612-calculate_group_turnover-calculate_group_turnover_stats" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.12 get_clean_factor_and_forward_returns
+        6.12 calculate_group_turnover / calculate_group_turnover_stats
       
     </span>
   </a>
@@ -1020,10 +1352,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#613-calculate_daily_ic-ic_statistics_analysis-ic_mean_t_test" class="md-nav__link">
+  <a href="#613-calculate_factor_turnover_rate-factor_turnover_stats" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.13 calculate_daily_ic / ic_statistics_analysis / ic_mean_t_test
+        6.13 calculate_factor_turnover_rate / factor_turnover_stats
       
     </span>
   </a>
@@ -1031,10 +1363,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#614-calculate_daily_group_ret-calculate_long_short-performance_analysis-calculate_all_group_performance" class="md-nav__link">
+  <a href="#614-calculate_turnover_return_correlation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.14 calculate_daily_group_ret / calculate_long_short / performance_analysis / calculate_all_group_performance
+        6.14 calculate_turnover_return_correlation
       
     </span>
   </a>
@@ -1042,10 +1374,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#615-calculate_group_turnover-calculate_group_turnover_stats" class="md-nav__link">
+  <a href="#615-calculate_net_returns_with_cost" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.15 calculate_group_turnover / calculate_group_turnover_stats
+        6.15 calculate_net_returns_with_cost
       
     </span>
   </a>
@@ -1053,10 +1385,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#616-calculate_factor_turnover_rate-factor_turnover_stats" class="md-nav__link">
+  <a href="#616" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.16 calculate_factor_turnover_rate / factor_turnover_stats
+        6.16 图表函数最小调用
       
     </span>
   </a>
@@ -1064,43 +1396,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#617-calculate_turnover_return_correlation" class="md-nav__link">
+  <a href="#617-create_factor_analysis_report" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.17 calculate_turnover_return_correlation
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#618-calculate_net_returns_with_cost" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6.18 calculate_net_returns_with_cost
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#619" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6.19 图表函数最小调用
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#620-create_factor_analysis_report" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6.20 create_factor_analysis_report
+        6.17 create_factor_analysis_report
       
     </span>
   </a>
@@ -1173,7 +1472,7 @@
   <a href="#12" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1.2 全局对象
+        1.2 数据结构与函数
       
     </span>
   </a>
@@ -1209,10 +1508,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#211-initself-pro-db_path-str-none" class="md-nav__link">
+  <a href="#211-initself-pro-any-db_path-path-str-none" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.1.1 init(self, pro, db_path: str) -&gt; None
+        2.1.1 init(self, pro: Any, db_path: Path | str) -&gt; None
       
     </span>
   </a>
@@ -1220,10 +1519,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#212-calendarself-none" class="md-nav__link">
+  <a href="#212-from_configcls-config-config-download" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.1.2 calendar(self) -&gt; None
+        2.1.2 from_config(cls, config: Config) -&gt; Download
       
     </span>
   </a>
@@ -1231,10 +1530,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#213-stocks_infoself-none" class="md-nav__link">
+  <a href="#213-calendarself-none" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.1.3 stocks_info(self) -&gt; None
+        2.1.3 calendar(self) -&gt; None
       
     </span>
   </a>
@@ -1242,10 +1541,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#214-stocks_dailyself-none" class="md-nav__link">
+  <a href="#214-stocks_infoself-none" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.1.4 stocks_daily(self) -&gt; None
+        2.1.4 stocks_info(self) -&gt; None
       
     </span>
   </a>
@@ -1253,10 +1552,43 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#215-mergeself-none" class="md-nav__link">
+  <a href="#215-industryself-level-str-l1-src-str-sw2021-none" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.1.5 merge(self) -&gt; None
+        2.1.5 industry(self, level: str = "L1", src: str = "SW2021") -&gt; None
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#216-stocks_dailyself-basic-bool-true-none" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1.6 stocks_daily(self, basic: bool = True) -&gt; None
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#217-mergeself-none" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1.7 merge(self) -&gt; None
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#218" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1.8 产物清单
       
     </span>
   </a>
@@ -1339,10 +1671,309 @@
   <a href="#312c" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.1.2C 公式函数（新增）
+        3.1.2C 公式函数详解
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="3.1.2C 公式函数详解">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        基础时序 / 截面算子
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="基础时序 / 截面算子">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#max-n-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MA(x, n, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#emax-n-adjusttrue-min_periods1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EMA(x, n, adjust=True, min_periods=1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rankx-pcttrue-ascendingtrue-methodaverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RANK(x, pct=True, ascending=True, method="average")
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#refx-n1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        REF(x, n=1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deltax-n1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DELTA(x, n=1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stdx-n-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STD(x, n, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sumx-n-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SUM(x, n, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        通达信风格函数
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="通达信风格函数">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#absx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ABS(x)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#maxa-b" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MAX(a, b)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mina-b" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MIN(a, b)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ifcond-a-b" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IF(cond, a, b)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#countcond-n-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COUNT(cond, n, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#everycond-n-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EVERY(cond, n, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#existcond-n-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EXIST(cond, n, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hhvx-n-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HHV(x, n, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#llvx-n-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LLV(x, n, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tsrankx-n-pcttrue-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TSRANK(x, n, pct=True, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#smax-n-m1-min_periods1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SMA(x, n, m=1, min_periods=1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#crossa-b" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CROSS(a, b)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        数学函数
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="数学函数">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#logx-expx-sqrtx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LOG(x) / EXP(x) / SQRT(x)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        速查表
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        易混点提示
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -1380,10 +2011,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#316-_prepare_factor_valuesself-winsorize-str-none-none-winsorize_param-float-3-standardize-bool-false-pdseries" class="md-nav__link">
+  <a href="#316-_prepare_factor_valuesself-winsorizenone-winsorize_param3-standardizefalse-industry_neutralfalse-market_cap_neutralfalse-industry_coll1_code-market_cap_coltotal_mv-market_cap_logtrue-industry_datanone-adjusttrue-pdseries" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.1.6 _prepare_factor_values(self, winsorize: str | None = None, winsorize_param: float = 3, standardize: bool = False) -&gt; pd.Series
+        3.1.6 _prepare_factor_values(self, winsorize=None, winsorize_param=3, standardize=False, industry_neutral=False, market_cap_neutral=False, industry_col="l1_code", market_cap_col="total_mv", market_cap_log=True, industry_data=None, adjust=True) -&gt; pd.Series
       
     </span>
   </a>
@@ -1391,10 +2022,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#317-get_clean_factor_and_forward_returnsself-quantiles-int-5-period-int-1-winsorize-str-none-none-winsorize_param-float-3-standardize-bool-false-pddataframe" class="md-nav__link">
+  <a href="#317-get_clean_factor_and_forward_returnsself-quantiles5-period1-winsorizenone-winsorize_param3-standardizefalse-industry_neutralfalse-market_cap_neutralfalse-industry_coll1_code-market_cap_coltotal_mv-market_cap_logtrue-industry_datanone-adjusttrue-pddataframe" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.1.7 get_clean_factor_and_forward_returns(self, quantiles: int = 5, period: int = 1, winsorize: str | None = None, winsorize_param: float = 3, standardize: bool = False) -&gt; pd.DataFrame
+        3.1.7 get_clean_factor_and_forward_returns(self, quantiles=5, period=1, winsorize=None, winsorize_param=3, standardize=False, industry_neutral=False, market_cap_neutral=False, industry_col="l1_code", market_cap_col="total_mv", market_cap_log=True, industry_data=None, adjust=True) -&gt; pd.DataFrame
       
     </span>
   </a>
@@ -1655,10 +2286,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#3131-create_factor_analysis_reportself-quantiles-int-5-period-int-1-winsorize-str-none-none-winsorize_param-float-3-standardize-bool-false-transaction_cost_bps-float-10-none" class="md-nav__link">
+  <a href="#3131-create_factor_analysis_reportself-quantiles5-period1-winsorizenone-winsorize_param3-standardizefalse-transaction_cost_bps10-industry_neutralfalse-market_cap_neutralfalse-industry_coll1_code-market_cap_coltotal_mv-market_cap_logtrue-industry_datanone-adjusttrue-output_diroutput-path" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.1.31 create_factor_analysis_report(self, quantiles: int = 5, period: int = 1, winsorize: str | None = None, winsorize_param: float = 3, standardize: bool = False, transaction_cost_bps: float = 10) -&gt; None
+        3.1.31 create_factor_analysis_report(self, quantiles=5, period=1, winsorize=None, winsorize_param=3, standardize=False, transaction_cost_bps=10, industry_neutral=False, market_cap_neutral=False, industry_col="l1_code", market_cap_col="total_mv", market_cap_log=True, industry_data=None, adjust=True, output_dir="./output") -&gt; Path
       
     </span>
   </a>
@@ -1716,10 +2347,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#62-downloadinit" class="md-nav__link">
+  <a href="#62-download-from_config" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.2 Download.init
+        6.2 Download（推荐 from_config）
       
     </span>
   </a>
@@ -1727,10 +2358,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#63-downloadcalendar" class="md-nav__link">
+  <a href="#63-downloadcalendar-stocks_info-industry-stocks_daily-merge" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.3 Download.calendar
+        6.3 Download.calendar / stocks_info / industry / stocks_daily / merge
       
     </span>
   </a>
@@ -1738,10 +2369,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#64-downloadstocks_info" class="md-nav__link">
+  <a href="#64-factor-calculate" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.4 Download.stocks_info
+        6.4 Factor 子类最小实现（对应 calculate）
       
     </span>
   </a>
@@ -1749,10 +2380,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#65-downloadstocks_daily" class="md-nav__link">
+  <a href="#65-formula-bind" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.5 Download.stocks_daily
+        6.5 FORMULA / BIND 示例
       
     </span>
   </a>
@@ -1760,10 +2391,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#66-downloadmerge" class="md-nav__link">
+  <a href="#66" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.6 Download.merge
+        6.6 通达信风格函数示例
       
     </span>
   </a>
@@ -1771,10 +2402,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#67-factor-calculate" class="md-nav__link">
+  <a href="#67-winsorize_3sigma-winsorize_mad-standardize_zscore" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.7 Factor 子类最小实现（对应 calculate）
+        6.7 winsorize_3sigma / winsorize_mad / standardize_zscore
       
     </span>
   </a>
@@ -1782,10 +2413,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#68-formula-bind" class="md-nav__link">
+  <a href="#68-_prepare_factor_values" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.8 FORMULA / BIND 示例
+        6.8 _prepare_factor_values
       
     </span>
   </a>
@@ -1793,10 +2424,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#69" class="md-nav__link">
+  <a href="#69-get_clean_factor_and_forward_returns" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.9 通达信风格函数示例
+        6.9 get_clean_factor_and_forward_returns
       
     </span>
   </a>
@@ -1804,10 +2435,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#610-winsorize_3sigma-winsorize_mad-standardize_zscore" class="md-nav__link">
+  <a href="#610-calculate_daily_ic-ic_statistics_analysis-ic_mean_t_test" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.10 winsorize_3sigma / winsorize_mad / standardize_zscore
+        6.10 calculate_daily_ic / ic_statistics_analysis / ic_mean_t_test
       
     </span>
   </a>
@@ -1815,10 +2446,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#611-_prepare_factor_values" class="md-nav__link">
+  <a href="#611-calculate_daily_group_ret-calculate_long_short-performance_analysis-calculate_all_group_performance" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.11 _prepare_factor_values
+        6.11 calculate_daily_group_ret / calculate_long_short / performance_analysis / calculate_all_group_performance
       
     </span>
   </a>
@@ -1826,10 +2457,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#612-get_clean_factor_and_forward_returns" class="md-nav__link">
+  <a href="#612-calculate_group_turnover-calculate_group_turnover_stats" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.12 get_clean_factor_and_forward_returns
+        6.12 calculate_group_turnover / calculate_group_turnover_stats
       
     </span>
   </a>
@@ -1837,10 +2468,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#613-calculate_daily_ic-ic_statistics_analysis-ic_mean_t_test" class="md-nav__link">
+  <a href="#613-calculate_factor_turnover_rate-factor_turnover_stats" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.13 calculate_daily_ic / ic_statistics_analysis / ic_mean_t_test
+        6.13 calculate_factor_turnover_rate / factor_turnover_stats
       
     </span>
   </a>
@@ -1848,10 +2479,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#614-calculate_daily_group_ret-calculate_long_short-performance_analysis-calculate_all_group_performance" class="md-nav__link">
+  <a href="#614-calculate_turnover_return_correlation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.14 calculate_daily_group_ret / calculate_long_short / performance_analysis / calculate_all_group_performance
+        6.14 calculate_turnover_return_correlation
       
     </span>
   </a>
@@ -1859,10 +2490,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#615-calculate_group_turnover-calculate_group_turnover_stats" class="md-nav__link">
+  <a href="#615-calculate_net_returns_with_cost" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.15 calculate_group_turnover / calculate_group_turnover_stats
+        6.15 calculate_net_returns_with_cost
       
     </span>
   </a>
@@ -1870,10 +2501,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#616-calculate_factor_turnover_rate-factor_turnover_stats" class="md-nav__link">
+  <a href="#616" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.16 calculate_factor_turnover_rate / factor_turnover_stats
+        6.16 图表函数最小调用
       
     </span>
   </a>
@@ -1881,43 +2512,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#617-calculate_turnover_return_correlation" class="md-nav__link">
+  <a href="#617-create_factor_analysis_report" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6.17 calculate_turnover_return_correlation
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#618-calculate_net_returns_with_cost" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6.18 calculate_net_returns_with_cost
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#619" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6.19 图表函数最小调用
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#620-create_factor_analysis_report" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6.20 create_factor_analysis_report
+        6.17 create_factor_analysis_report
       
     </span>
   </a>
@@ -1950,92 +2548,67 @@
 <p>本文档按模块详细说明当前项目中的主要函数、方法、输入输出和注意事项。</p>
 <h2 id="1-srcconfigpy">1. src/config.py</h2>
 <h3 id="11">1.1 模块作用</h3>
-<p>负责读取环境变量并初始化 Tushare Pro 客户端。</p>
-<h3 id="12">1.2 全局对象</h3>
+<p>负责配置加载与日志初始化，且在 import 时无副作用。</p>
+<h3 id="12">1.2 数据结构与函数</h3>
 <ol>
-<li>token</li>
-<li>类型：str | None</li>
-<li>来源：环境变量 TUSHARE_TOKEN</li>
+<li><code>Config</code></li>
+<li>字段：<code>token: str</code>、<code>db_path: pathlib.Path</code>。</li>
+<li>行为：<code>__post_init__</code> 会规范化路径（绝对化、展开 <code>~</code>）。</li>
 <li>
-<p>作用：Tushare 鉴权 token。</p>
+<p>惰性属性：<code>pro</code> 首次访问时才创建 <code>tushare.pro_api(token)</code> 客户端。</p>
 </li>
 <li>
-<p>db_path</p>
+<p><code>load_config(env_file=None, create_db_dir=True) -&gt; Config</code></p>
 </li>
-<li>类型：str</li>
-<li>来源：环境变量 DB_NAME（默认 ./data/）</li>
+<li>功能：读取 <code>.env</code>（或显式路径）并返回 <code>Config</code>。</li>
+<li>必填项：<code>TUSHARE_TOKEN</code> 与 <code>DB_NAME</code>。</li>
+<li>异常：任一缺失会抛 <code>ValueError</code>。</li>
 <li>
-<p>作用：数据文件存储目录。</p>
-</li>
-<li>
-<p>pro</p>
-</li>
-<li>类型：tushare.pro client</li>
-<li>生成条件：token 和 db_path 均存在。</li>
-<li>
-<p>作用：全局复用的 Tushare Pro API 客户端。</p>
+<p>目录：<code>create_db_dir=True</code> 时自动创建 <code>db_path</code>。</p>
 </li>
 <li>
-<p>异常</p>
+<p><code>setup_logging(level=logging.INFO, log_file="debug.log", fmt=..., force=False) -&gt; None</code></p>
 </li>
-<li>当 token 或 db_path 缺失时，抛出 ValueError。</li>
+<li>功能：初始化根日志，默认同时输出到终端和 <code>debug.log</code>。</li>
+<li>
+<p>特性：幂等；<code>force=True</code> 可重建 handler。</p>
+</li>
+<li>
+<p>设计约束</p>
+</li>
+<li>不再提供 import 即可使用的全局 <code>token/db_path/pro</code> 变量。</li>
+<li>推荐调用链：<code>setup_logging()</code> → <code>cfg = load_config()</code> → <code>cfg.pro</code>。</li>
 </ol>
 <h2 id="2-srcdownloadpy">2. src/download.py</h2>
 <h2 id="21-download">2.1 类 Download</h2>
-<p>封装行情数据下载和合并流程。</p>
-<h3 id="211-initself-pro-db_path-str-none">2.1.1 <strong>init</strong>(self, pro, db_path: str) -&gt; None</h3>
-<p>功能：
-- 保存 Tushare 客户端和数据路径。</p>
-<p>参数：
-- pro：Tushare Pro 客户端。
-- db_path：数据目录。</p>
-<p>返回：
-- 无。</p>
-<h3 id="212-calendarself-none">2.1.2 calendar(self) -&gt; None</h3>
-<p>功能：
-- 拉取 SSE 开市日交易日历并保存为 calendar.parquet。</p>
+<p>封装行情数据下载与合并流程。</p>
+<h3 id="211-initself-pro-any-db_path-path-str-none">2.1.1 <strong>init</strong>(self, pro: Any, db_path: Path | str) -&gt; None</h3>
+<p>功能：保存 Tushare 客户端与数据目录，并自动创建目录。</p>
+<h3 id="212-from_configcls-config-config-download">2.1.2 from_config(cls, config: Config) -&gt; Download</h3>
+<p>功能：从 <code>load_config()</code> 返回的 <code>Config</code> 直接构造下载器。</p>
+<h3 id="213-calendarself-none">2.1.3 calendar(self) -&gt; None</h3>
+<p>功能：下载 SSE 开市日交易日历，写入 <code>calendar.parquet</code>。</p>
+<h3 id="214-stocks_infoself-none">2.1.4 stocks_info(self) -&gt; None</h3>
+<p>功能：下载 SSE/SZSE 全市场股票基础信息（L/D/P），写入 <code>stocks_info.parquet</code>。</p>
+<h3 id="215-industryself-level-str-l1-src-str-sw2021-none">2.1.5 industry(self, level: str = "L1", src: str = "SW2021") -&gt; None</h3>
+<p>功能：下载申万行业成分变更表，写入 <code>industry.parquet</code>。</p>
+<h3 id="216-stocks_dailyself-basic-bool-true-none">2.1.6 stocks_daily(self, basic: bool = True) -&gt; None</h3>
+<p>功能：逐股下载日线、复权因子、（可选）daily_basic，并合并曾用名。</p>
 <p>主要逻辑：
-- 读取 1900-01-01 到 2050-01-01 的开市日。
-- 字段 cal_date 转 datetime。
-- 逆序后保存到 db_path/calendar.parquet。</p>
-<p>返回：
-- 无。</p>
-<h3 id="213-stocks_infoself-none">2.1.3 stocks_info(self) -&gt; None</h3>
-<p>功能：
-- 下载两市股票基础信息（L/D/P 状态）并合并。</p>
-<p>主要逻辑：
-- 分别请求 SSE、SZSE 的 L/D/P。
-- 合并后将 ts_code 重命名为 symbol。
-- list_date 转 datetime。
-- 保存到 db_path/stocks_info.parquet。</p>
-<p>返回：
-- 无。</p>
-<h3 id="214-stocks_dailyself-none">2.1.4 stocks_daily(self) -&gt; None</h3>
-<p>功能：
-- 按股票下载历史日线、复权因子、daily_basic，并合并股票曾用名。</p>
-<p>主要逻辑：
-- 从 stocks_info.parquet 获取股票列表与上市日期。
-- 按交易日历切片，每 5000 个交易日分块请求。
-- 合并 daily、adj_factor、daily_basic。
-- 请求 namechange 并按时间 merge_asof 映射历史简称。
-- 统一字段名并输出每只股票文件到 db_path/stocks_daily/{symbol}.parquet。
-- 单只股票失败时重试最多 3 次。</p>
-<p>输入依赖：
-- calendar.parquet
-- stocks_info.parquet</p>
-<p>返回：
-- 无。</p>
-<p>注意：
-- 该方法网络与接口调用量较大，耗时长。</p>
-<h3 id="215-mergeself-none">2.1.5 merge(self) -&gt; None</h3>
-<p>功能：
-- 读取 stocks_daily 目录下所有个股 parquet，并合并为总表。</p>
-<p>主要逻辑：
-- 并行读取 parquet（ProcessPoolExecutor）。
-- 合并并按 date/symbol 排序。
-- 保存为 db_path/stocks_daily.parquet。</p>
-<p>返回：
-- 无。</p>
+1. 依赖 <code>calendar.parquet</code> 与 <code>stocks_info.parquet</code>。
+2. 按 5000 交易日分块请求 daily/adj_factor/daily_basic。
+3. 每只股票最多重试 3 次；失败仅 warning 后继续。
+4. 输出到 <code>stocks_daily/{symbol}.parquet</code>。</p>
+<h3 id="217-mergeself-none">2.1.7 merge(self) -&gt; None</h3>
+<p>功能：并行读取 <code>stocks_daily/*.parquet</code> 并合并为 <code>stocks_daily.parquet</code>。</p>
+<h3 id="218">2.1.8 产物清单</h3>
+<ul>
+<li><code>calendar.parquet</code></li>
+<li><code>stocks_info.parquet</code></li>
+<li><code>industry.parquet</code></li>
+<li><code>stocks_daily/{symbol}.parquet</code></li>
+<li><code>stocks_daily.parquet</code></li>
+</ul>
 <h2 id="3-srcfactor_enginepy">3. src/factor_engine.py</h2>
 <h2 id="31-factor">3.1 抽象类 Factor</h2>
 <p>职责：
@@ -2044,8 +2617,9 @@
 - 提供公式化因子 DSL（如 <code>MA(CLOSE, 20)</code>）及通达信风格算子。
 - 在公式执行、因子预处理、报告生成阶段输出日志，便于排错。</p>
 <p>数据约定：
-- self.data 为 MultiIndex(date, symbol) 的 DataFrame。
-- 至少包含 close 字段；示例因子使用 turnover_rate。</p>
+- <code>self.data</code> 为 MultiIndex <code>(date, symbol)</code> 的 DataFrame，且应先 <code>sort_index()</code>。
+- 至少包含 <code>close</code>；当 <code>adjust=True</code> 时还必须包含 <code>adj_factor</code>。
+- <code>adjust=True</code> 会在因子计算前先复权 <code>open/high/low/close/pre_close</code>，再计算因子。</p>
 <h3 id="311-initself-name-str-data-pddataframe-none">3.1.1 <strong>init</strong>(self, name: str, data: pd.DataFrame) -&gt; None</h3>
 <p>功能：
 - 初始化因子名称和输入数据。</p>
@@ -2084,19 +2658,259 @@
 <li>功能：绑定公式名称，减少重复写 <code>self.</code>。</li>
 <li>示例：<code>MA, CLOSE = self.BIND("MA", "CLOSE")</code></li>
 </ol>
-<h3 id="312c">3.1.2C 公式函数（新增）</h3>
-<p>基础算子：
-- MA, EMA, RANK, REF, DELTA, STD, SUM</p>
-<p>通达信风格：
-- ABS, MAX, MIN, IF, COUNT, EVERY, EXIST, HHV, LLV, TSRANK, SMA, CROSS</p>
-<p>数学函数：
-- LOG, EXP, SQRT</p>
-<p>口径说明：
-- 时序滚动类默认按 <code>symbol</code> 分组。
-- 截面排序 <code>RANK</code> 按 <code>date</code> 分组。
-- <code>SMA(X,N,M)</code> 采用通达信定义：<code>Y=(M*X+(N-M)*Y')/N</code>。
-- <code>CROSS(A,B)</code> 定义为当期 <code>A&gt;B</code> 且上期 <code>A&lt;=B</code>。
-- <code>EVERY/EXIST</code> 在窗口不足时返回 <code>False</code>（非 <code>NaN</code>）。</p>
+<h3 id="312c">3.1.2C 公式函数详解</h3>
+<p>所有公式函数都以方法形式挂在 <code>Factor</code> 实例上，并通过 <code>_formula_namespace</code>
+注入到 <code>FORMULA(...)</code> 与 <code>BIND(...)</code> 的执行环境中。下面按类别给出每个函数的
+<strong>签名、口径、参数、返回、注意事项与最小示例</strong>。</p>
+<p>通用约定：</p>
+<ul>
+<li>形参 <code>x / a / b</code> 既可传字段别名字符串（自动取 <code>self.data[小写]</code>），也可传
+  任意 <code>pd.Series</code>（与 <code>self.data.index</code> 对齐）。<code>MAX/MIN/IF/COUNT/EVERY/EXIST/CROSS</code>
+  还支持标量。</li>
+<li><code>n / m</code> 必须是 <code>int</code>；返回值始终是 MultiIndex <code>(date, symbol)</code> 的 Series
+  （<code>EVERY/EXIST/CROSS</code> 返回布尔 Series）。</li>
+<li>时序滚动一律按 <code>symbol</code> 分组；截面操作（<code>RANK</code>）按 <code>date</code> 分组。</li>
+<li><code>min_periods=None</code> 表示与窗口长度 <code>n</code> 相等（要满窗才输出）；传整数则放宽，
+  早期窗口不足时也会输出。</li>
+<li>条件类参数（<code>cond</code>）会被 <code>_resolve_value</code> 处理为布尔，<code>NaN</code> 当作 <code>False</code>。</li>
+</ul>
+<h4 id="_1">基础时序 / 截面算子</h4>
+<h5 id="max-n-min_periodsnone">MA(x, n, min_periods=None)</h5>
+<p>简单移动平均，按 <code>symbol</code> 分组的窗口长度 <code>n</code> 滚动均值。</p>
+<ul>
+<li>参数：</li>
+<li><code>x</code>：字段别名或 Series。</li>
+<li><code>n</code>：窗口长度。</li>
+<li><code>min_periods</code>：默认 <code>n</code>（满窗才输出），可放宽。</li>
+<li>返回：与 <code>x</code> 同索引的 Series。</li>
+<li>示例：
+  <code>python
+  self.FORMULA("MA(CLOSE, 20)")              # 20 日均价
+  self.FORMULA("CLOSE / MA(CLOSE, 20) - 1")  # 相对均线偏离</code></li>
+</ul>
+<h5 id="emax-n-adjusttrue-min_periods1">EMA(x, n, adjust=True, min_periods=1)</h5>
+<p>指数移动平均（基于 <code>pandas.ewm(span=n)</code>），按 <code>symbol</code> 分组。</p>
+<ul>
+<li>参数：</li>
+<li><code>n</code>：等效 SMA 窗口，对应 <code>alpha = 2/(n+1)</code>。</li>
+<li><code>adjust</code>：与 <code>pandas.ewm</code> 含义相同；想得到通达信 EMA 的递归口径请传
+    <code>adjust=False</code>。</li>
+<li><code>min_periods</code>：默认 <code>1</code>，第一个观测即可输出。</li>
+<li>示例：
+  <code>python
+  self.FORMULA("EMA(CLOSE, 12) - EMA(CLOSE, 26)")  # MACD diff</code></li>
+</ul>
+<h5 id="rankx-pcttrue-ascendingtrue-methodaverage">RANK(x, pct=True, ascending=True, method="average")</h5>
+<p><strong>截面排序</strong>：按 <code>date</code> 对当日所有股票排名。</p>
+<ul>
+<li>参数：</li>
+<li><code>pct=True</code> 输出 0-1 百分比秩，<code>False</code> 输出 1..N 名次。</li>
+<li><code>ascending=True</code> 升序（值越小秩越低）。</li>
+<li><code>method</code>：<code>"average" | "min" | "max" | "first" | "dense"</code>，对应 <code>pandas.rank</code>。</li>
+<li>与 <code>TSRANK</code> 区分：<code>RANK</code> 是<strong>截面</strong>（同日股票之间），<code>TSRANK</code> 是<strong>时序</strong>
+  （同股票最近 n 天之间）。</li>
+<li>示例：
+  <code>python
+  self.FORMULA("RANK(VOLUME)")              # 当日成交量分位
+  self.FORMULA("RANK(MA(CLOSE, 20))")       # 20 日均价的截面分位</code></li>
+</ul>
+<h5 id="refx-n1">REF(x, n=1)</h5>
+<p>滞后 n 期，等价于 <code>groupby(symbol).shift(n)</code>。前 n 期为 NaN。</p>
+<ul>
+<li>示例：
+  <code>python
+  self.FORMULA("CLOSE / REF(CLOSE, 1) - 1")  # 隐式日收益率</code></li>
+</ul>
+<h5 id="deltax-n1">DELTA(x, n=1)</h5>
+<p>按 <code>symbol</code> 的差分 <code>x_t - x_{t-n}</code>。前 n 期为 NaN。</p>
+<ul>
+<li>示例：
+  <code>python
+  self.FORMULA("DELTA(CLOSE, 5)")           # 5 日价差</code></li>
+</ul>
+<h5 id="stdx-n-min_periodsnone">STD(x, n, min_periods=None)</h5>
+<p>按 <code>symbol</code> 的滚动标准差（默认 ddof=1，与 pandas 一致）。</p>
+<ul>
+<li>示例：
+  <code>python
+  self.FORMULA("STD(PCT_CHG, 20)")          # 20 日波动率</code></li>
+</ul>
+<h5 id="sumx-n-min_periodsnone">SUM(x, n, min_periods=None)</h5>
+<p>按 <code>symbol</code> 的滚动求和。</p>
+<ul>
+<li>示例：
+  <code>python
+  self.FORMULA("SUM(VOLUME, 5)")            # 5 日累计成交量</code></li>
+</ul>
+<h4 id="_2">通达信风格函数</h4>
+<h5 id="absx">ABS(x)</h5>
+<p>逐元素绝对值。</p>
+<ul>
+<li>示例：<code>self.FORMULA("ABS(DELTA(CLOSE, 1))")</code></li>
+</ul>
+<h5 id="maxa-b">MAX(a, b)</h5>
+<p><strong>逐元素较大值</strong>（不是滚动窗口最大值——那是 <code>HHV</code>）。<code>a/b</code> 都经 <code>_resolve_value</code>
+解析，因此可以混合 Series 与标量。</p>
+<ul>
+<li>示例：
+  <code>python
+  self.FORMULA("MAX(CLOSE - REF(CLOSE, 1), 0)")  # 上行幅度（与 0 取大）</code></li>
+</ul>
+<h5 id="mina-b">MIN(a, b)</h5>
+<p>逐元素较小值，语义与 <code>MAX</code> 镜像。</p>
+<h5 id="ifcond-a-b">IF(cond, a, b)</h5>
+<p>三元：<code>np.where(cond, a, b)</code>。<code>cond</code> 的 NaN 当作 False；<code>a/b</code> 自动对齐索引。</p>
+<ul>
+<li>示例：
+  <code>python
+  self.FORMULA("IF(CLOSE &gt; REF(CLOSE, 1), 1, -1)")  # 涨跌方向哑变量</code></li>
+</ul>
+<h5 id="countcond-n-min_periodsnone">COUNT(cond, n, min_periods=None)</h5>
+<p><code>cond</code> 在最近 n 期里为 True 的<strong>次数</strong>（按 symbol 滚动）。</p>
+<ul>
+<li>示例：
+  <code>python
+  self.FORMULA("COUNT(CLOSE &gt; REF(CLOSE, 1), 5)")  # 最近 5 日上涨天数</code></li>
+</ul>
+<h5 id="everycond-n-min_periodsnone">EVERY(cond, n, min_periods=None)</h5>
+<p>最近 n 期是否<strong>全部</strong>为 True，返回布尔 Series。窗口不足时按 False 处理。</p>
+<ul>
+<li>示例：
+  <code>python
+  self.FORMULA("EVERY(CLOSE &gt; REF(CLOSE, 1), 3)")  # 连涨 3 天</code></li>
+</ul>
+<h5 id="existcond-n-min_periodsnone">EXIST(cond, n, min_periods=None)</h5>
+<p>最近 n 期内<strong>至少一次</strong>为 True。</p>
+<ul>
+<li>示例：
+  <code>python
+  self.FORMULA("EXIST(VOLUME &gt; 1.5 * MA(VOLUME, 20), 5)")  # 5 日内出现过放量</code></li>
+</ul>
+<h5 id="hhvx-n-min_periodsnone">HHV(x, n, min_periods=None)</h5>
+<p>最近 n 期最<strong>高</strong>值（按 symbol 滚动）。</p>
+<ul>
+<li>示例：
+  <code>python
+  # 当前价在 20 日箱体内的相对位置（0=底，1=顶）
+  self.FORMULA("(CLOSE - LLV(CLOSE, 20)) / (HHV(CLOSE, 20) - LLV(CLOSE, 20))")</code></li>
+</ul>
+<h5 id="llvx-n-min_periodsnone">LLV(x, n, min_periods=None)</h5>
+<p>最近 n 期最<strong>低</strong>值。</p>
+<h5 id="tsrankx-n-pcttrue-min_periodsnone">TSRANK(x, n, pct=True, min_periods=None)</h5>
+<p><strong>时序排名</strong>：当前值在最近 n 期窗口内的排名。</p>
+<ul>
+<li><code>pct=True</code> 输出 0..1，<code>False</code> 输出 1..n。</li>
+<li>与 <code>RANK</code>（截面）形成对偶；常用于动量类因子。</li>
+<li>示例：
+  <code>python
+  self.FORMULA("TSRANK(CLOSE, 60)")  # 当前价在过去 60 日中的相对位置</code></li>
+</ul>
+<h5 id="smax-n-m1-min_periods1">SMA(x, n, m=1, min_periods=1)</h5>
+<p><strong>通达信 SMA</strong>：递归权重平均 <code>Y = (m*X + (n-m)*Y_prev) / n</code>，等价于
+<code>ewm(alpha=m/n, adjust=False)</code>。</p>
+<ul>
+<li>约束：<code>n &gt; 0</code> 且 <code>0 &lt; m &lt;= n</code>，否则抛 <code>ValueError</code>。</li>
+<li>注意：此处 <code>SMA</code> <strong>不是</strong>简单移动平均（pandas 简单 MA 见 <code>MA</code>），它带指数衰减。</li>
+<li>示例：
+  <code>python
+  self.FORMULA("SMA(CLOSE, 12, 2)")  # KDJ 中的常见平滑</code></li>
+</ul>
+<h5 id="crossa-b">CROSS(a, b)</h5>
+<p>上穿信号：本期 <code>a &gt; b</code> 且上期 <code>a &lt;= b</code>，返回布尔 Series。</p>
+<ul>
+<li>示例：
+  <code>python
+  self.FORMULA("CROSS(MA(CLOSE, 5), MA(CLOSE, 20))")  # 5/20 金叉</code></li>
+</ul>
+<h4 id="_3">数学函数</h4>
+<h5 id="logx-expx-sqrtx">LOG(x) / EXP(x) / SQRT(x)</h5>
+<p>直接绑定的 <code>np.log</code> / <code>np.exp</code> / <code>np.sqrt</code>，逐元素作用在 Series 上。<code>LOG</code> 与
+<code>SQRT</code> 不会自动处理非正数——零或负数会得到 <code>-inf</code> / <code>nan</code>，需要时请自行
+<code>x.where(x &gt; 0)</code>。</p>
+<ul>
+<li>示例：
+  <code>python
+  self.FORMULA("LOG(TOTAL_MV)")             # 对数市值（市值中性化常用）
+  self.FORMULA("SQRT(STD(PCT_CHG, 20))")    # 波动率开方</code></li>
+</ul>
+<h4 id="_4">速查表</h4>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>类别</th>
+<th>一句话</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MA</code> / <code>EMA</code> / <code>SMA</code></td>
+<td>时序均值</td>
+<td>简单 / 指数 / 通达信 SMA（指数加权）</td>
+</tr>
+<tr>
+<td><code>STD</code> / <code>SUM</code></td>
+<td>时序聚合</td>
+<td>滚动标准差 / 求和</td>
+</tr>
+<tr>
+<td><code>REF</code> / <code>DELTA</code></td>
+<td>时序错位</td>
+<td>滞后 / 差分</td>
+</tr>
+<tr>
+<td><code>HHV</code> / <code>LLV</code></td>
+<td>时序极值</td>
+<td>n 期最高 / 最低</td>
+</tr>
+<tr>
+<td><code>TSRANK</code></td>
+<td>时序排名</td>
+<td>当前值在最近 n 期内的位置</td>
+</tr>
+<tr>
+<td><code>RANK</code></td>
+<td>截面排名</td>
+<td>当日全市场分位</td>
+</tr>
+<tr>
+<td><code>MAX</code> / <code>MIN</code></td>
+<td>逐元素极值</td>
+<td><strong>不是</strong>窗口极值（区别于 <code>HHV/LLV</code>）</td>
+</tr>
+<tr>
+<td><code>ABS</code> / <code>IF</code></td>
+<td>逐元素</td>
+<td>绝对值 / 三元</td>
+</tr>
+<tr>
+<td><code>COUNT</code> / <code>EVERY</code> / <code>EXIST</code></td>
+<td>条件聚合</td>
+<td>n 期内 True 的 次数 / 全是 / 至少一次</td>
+</tr>
+<tr>
+<td><code>CROSS</code></td>
+<td>信号</td>
+<td>上穿（同 <code>a&gt;b</code> 且上期 <code>a&lt;=b</code>）</td>
+</tr>
+<tr>
+<td><code>LOG</code> / <code>EXP</code> / <code>SQRT</code></td>
+<td>数学</td>
+<td>numpy 同名函数，逐元素</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_5">易混点提示</h4>
+<ul>
+<li><code>MAX(a, b)</code> vs <code>HHV(x, n)</code>：前者是两序列的逐元素较大值，后者是单序列的窗口最大。
+  写动量类因子常要的是 <code>HHV</code>。</li>
+<li><code>MA(x, n)</code> vs <code>SMA(x, n, m)</code>：<code>MA</code> 是简单等权均值；<code>SMA</code> 是通达信指数加权均值，
+  权重 <code>m/n</code>。</li>
+<li><code>RANK(x)</code> vs <code>TSRANK(x, n)</code>：截面 vs 时序，前者比的是同日不同股票，后者比的是
+  同股票不同日。</li>
+<li><code>LOG/SQRT</code> 对非正数会产生 <code>-inf/nan</code>，进入回归会让该截面被剔除——必要时先
+  <code>x.where(x &gt; 0)</code>。</li>
+</ul>
 <h3 id="313-winsorize_3sigmaself-factor-pdseries-n-int-3-pdseries">3.1.3 winsorize_3sigma(self, factor: pd.Series, n: int = 3) -&gt; pd.Series</h3>
 <p>功能：
 - 3sigma 去极值。</p>
@@ -2113,16 +2927,21 @@
 <p>规则：
 - (x - mean) / std。
 - 当 std=0 或缺失时返回全 0 序列。</p>
-<h3 id="316-_prepare_factor_valuesself-winsorize-str-none-none-winsorize_param-float-3-standardize-bool-false-pdseries">3.1.6 _prepare_factor_values(self, winsorize: str | None = None, winsorize_param: float = 3, standardize: bool = False) -&gt; pd.Series</h3>
+<h3 id="316-_prepare_factor_valuesself-winsorizenone-winsorize_param3-standardizefalse-industry_neutralfalse-market_cap_neutralfalse-industry_coll1_code-market_cap_coltotal_mv-market_cap_logtrue-industry_datanone-adjusttrue-pdseries">3.1.6 _prepare_factor_values(self, winsorize=None, winsorize_param=3, standardize=False, industry_neutral=False, market_cap_neutral=False, industry_col="l1_code", market_cap_col="total_mv", market_cap_log=True, industry_data=None, adjust=True) -&gt; pd.Series</h3>
 <p>功能：
-- 对子类计算出的原始因子值执行清洗预处理。</p>
+- 对子类因子值执行预处理（复权输入、去极值、中性化、标准化），并按参数缓存结果。</p>
 <p>流程：
-1. 调用 calculate。
-2. 按 date 截面去极值（可选）。
-3. 按 date 截面标准化（可选）。</p>
+1. 构造缓存键（含 <code>adjust</code>、中性化参数、<code>industry_data</code> 标识等）。
+2. <code>adjust=True</code> 时先复权价格列后再调用 <code>calculate()</code>。
+3. 按 date 截面去极值（可选）。
+4. 行业/市值/行业+市值中性化（可选）。
+5. 按 date 截面标准化（可选）。</p>
+<p>日志口径：
+- 参数缺失这类预期校验异常（如缺 <code>adj_factor</code>）走 <code>info</code>/<code>debug</code>，避免单测噪音。
+- 非预期异常仍走 <code>logger.exception</code>。</p>
 <p>返回：
 - 预处理后的因子 Series。</p>
-<h3 id="317-get_clean_factor_and_forward_returnsself-quantiles-int-5-period-int-1-winsorize-str-none-none-winsorize_param-float-3-standardize-bool-false-pddataframe">3.1.7 get_clean_factor_and_forward_returns(self, quantiles: int = 5, period: int = 1, winsorize: str | None = None, winsorize_param: float = 3, standardize: bool = False) -&gt; pd.DataFrame</h3>
+<h3 id="317-get_clean_factor_and_forward_returnsself-quantiles5-period1-winsorizenone-winsorize_param3-standardizefalse-industry_neutralfalse-market_cap_neutralfalse-industry_coll1_code-market_cap_coltotal_mv-market_cap_logtrue-industry_datanone-adjusttrue-pddataframe">3.1.7 get_clean_factor_and_forward_returns(self, quantiles=5, period=1, winsorize=None, winsorize_param=3, standardize=False, industry_neutral=False, market_cap_neutral=False, industry_col="l1_code", market_cap_col="total_mv", market_cap_log=True, industry_data=None, adjust=True) -&gt; pd.DataFrame</h3>
 <p>功能：
 - 生成因子分析主数据集。</p>
 <p>流程：
@@ -2133,6 +2952,9 @@
 - 再按 symbol 做 shift(-period)
 4. 删除缺失。
 5. 按 date 截面做分位分组。</p>
+<p><code>adjust</code> 语义：
+- <code>True</code>：因子计算前先复权价格列，且 <code>next_ret</code> 使用 <code>close*adj_factor</code>。
+- <code>False</code>：因子计算与 <code>next_ret</code> 都使用原始价格。</p>
 <p>返回：
 - DataFrame，核心列：factor、close、next_ret、factor_quantile。</p>
 <h3 id="318-calculate_daily_icself-result-pddataframe-pdseries">3.1.8 calculate_daily_ic(self, result: pd.DataFrame) -&gt; pd.Series</h3>
@@ -2244,25 +3066,28 @@
 <h3 id="3130-plot_long_short_net_vs_grossself-long_short_gross-pdseries-long_short_net-pdseries-cost_bps-float-line">3.1.30 plot_long_short_net_vs_gross(self, long_short_gross: pd.Series, long_short_net: pd.Series, cost_bps: float) -&gt; Line</h3>
 <p>功能：
 - 多空毛收益累计、净收益累计、累计成本拖累三条曲线对比。</p>
-<h3 id="3131-create_factor_analysis_reportself-quantiles-int-5-period-int-1-winsorize-str-none-none-winsorize_param-float-3-standardize-bool-false-transaction_cost_bps-float-10-none">3.1.31 create_factor_analysis_report(self, quantiles: int = 5, period: int = 1, winsorize: str | None = None, winsorize_param: float = 3, standardize: bool = False, transaction_cost_bps: float = 10) -&gt; None</h3>
+<h3 id="3131-create_factor_analysis_reportself-quantiles5-period1-winsorizenone-winsorize_param3-standardizefalse-transaction_cost_bps10-industry_neutralfalse-market_cap_neutralfalse-industry_coll1_code-market_cap_coltotal_mv-market_cap_logtrue-industry_datanone-adjusttrue-output_diroutput-path">3.1.31 create_factor_analysis_report(self, quantiles=5, period=1, winsorize=None, winsorize_param=3, standardize=False, transaction_cost_bps=10, industry_neutral=False, market_cap_neutral=False, industry_col="l1_code", market_cap_col="total_mv", market_cap_log=True, industry_data=None, adjust=True, output_dir="./output") -&gt; Path</h3>
 <p>功能：
 - 一键生成完整分析流程和 HTML 报告。</p>
 <p>核心步骤：
 1. 构建因子数据集。
-2. 计算分组收益、多空收益、IC、换手率、净收益。
-3. 计算分组收益、多空收益、IC、换手率与净收益。
-4. 生成可视化页面并写入 output/因子分析报告.html。
+2. 计算分组收益、多空收益、IC、换手率、交易成本扣减后的净收益。
+3. 汇总统计指标并构建图表页面。
+4. 生成可视化页面并写入 <code>output_dir/{factor.name}因子分析报告.html</code>。
 5. 在控制台输出关键统计表。</p>
 <p>关键参数：
-- transaction_cost_bps：单边交易成本（bps）。</p>
+- transaction_cost_bps：单边交易成本（bps）。
+- adjust：因子计算前与远期收益计算是否统一使用复权价。</p>
+<p>返回：
+- 报告文件路径 <code>Path</code>。</p>
 <h2 id="4-factor_enginepy">4. 主程序示例（factor_engine.py 中）</h2>
-<p>示例子类 ma 的因子定义为：
-- 20 日平均换手率 / 当日换手率。</p>
+<p>示例子类 <code>my_factor</code> 的因子定义为：
+- <code>MA(CLOSE, 20) / CLOSE - 1</code>。</p>
 <p>示例流程：
 1. 读取 stocks_daily.parquet。
-2. 筛选 2023 年。
-3. 设置索引并复权 close。
-4. 调用 create_factor_analysis_report。</p>
+2. 筛选时间区间并设置 MultiIndex。
+3. 读取 industry.parquet（用于行业中性化）。
+4. 调用 create_factor_analysis_report（<code>adjust=True</code> 时因子侧和收益侧统一复权）。</p>
 <h2 id="5">5. 术语与口径说明</h2>
 <ol>
 <li>单边成本</li>
@@ -2290,78 +3115,63 @@
 <h2 id="6">6. 调用示例片段</h2>
 <p>以下示例均为最小可运行片段，默认在项目根目录执行。</p>
 <h3 id="61-config">6.1 config 模块</h3>
-<pre><code class="language-python">from src.config import pro, db_path
+<pre><code class="language-python">from qlfactor import load_config, setup_logging
 
-print(type(pro))
-print(db_path)
+setup_logging()
+cfg = load_config()
+print(cfg.db_path)
+print(type(cfg.pro))
 </code></pre>
-<h3 id="62-downloadinit">6.2 Download.<strong>init</strong></h3>
-<pre><code class="language-python">from src.config import pro, db_path
-from src.download import Download
+<h3 id="62-download-from_config">6.2 Download（推荐 from_config）</h3>
+<pre><code class="language-python">from qlfactor import Download, load_config, setup_logging
 
-dl = Download(pro, db_path)
+setup_logging()
+cfg = load_config()
+dl = Download.from_config(cfg)
 print(dl.db_path)
 </code></pre>
-<h3 id="63-downloadcalendar">6.3 Download.calendar</h3>
-<pre><code class="language-python">from src.config import pro, db_path
-from src.download import Download
+<h3 id="63-downloadcalendar-stocks_info-industry-stocks_daily-merge">6.3 Download.calendar / stocks_info / industry / stocks_daily / merge</h3>
+<pre><code class="language-python">from qlfactor import Download, load_config, setup_logging
 
-dl = Download(pro, db_path)
+setup_logging()
+cfg = load_config()
+dl = Download.from_config(cfg)
 dl.calendar()
-print(&quot;calendar.parquet done&quot;)
-</code></pre>
-<h3 id="64-downloadstocks_info">6.4 Download.stocks_info</h3>
-<pre><code class="language-python">from src.config import pro, db_path
-from src.download import Download
-
-dl = Download(pro, db_path)
 dl.stocks_info()
-print(&quot;stocks_info.parquet done&quot;)
-</code></pre>
-<h3 id="65-downloadstocks_daily">6.5 Download.stocks_daily</h3>
-<pre><code class="language-python">from src.config import pro, db_path
-from src.download import Download
-
-dl = Download(pro, db_path)
+dl.industry()
 dl.stocks_daily()
-print(&quot;stocks_daily/*.parquet done&quot;)
-</code></pre>
-<h3 id="66-downloadmerge">6.6 Download.merge</h3>
-<pre><code class="language-python">from src.config import pro, db_path
-from src.download import Download
-
-dl = Download(pro, db_path)
 dl.merge()
-print(&quot;stocks_daily.parquet done&quot;)
 </code></pre>
-<h3 id="67-factor-calculate">6.7 Factor 子类最小实现（对应 calculate）</h3>
+<h3 id="64-factor-calculate">6.4 Factor 子类最小实现（对应 calculate）</h3>
 <pre><code class="language-python">import pandas as pd
-from src.factor_engine import Factor
+from qlfactor import Factor, load_config, setup_logging
+
+setup_logging()
+cfg = load_config()
 
 class DemoFactor(Factor):
-    def calculate(self):
-        # 公式写法：无需在表达式里写 self.
-        return self.FORMULA(&quot;MA(TURNOVER_RATE, 20) / TURNOVER_RATE&quot;)
+  def calculate(self):
+    # 公式写法：无需在表达式里写 self.
+    return self.FORMULA(&quot;MA(CLOSE, 20) / CLOSE - 1&quot;)
 
-data = pd.read_parquet(&quot;./data/stocks_daily.parquet&quot;)
+data = pd.read_parquet(cfg.db_path / &quot;stocks_daily.parquet&quot;)
 data = data.set_index([&quot;date&quot;, &quot;symbol&quot;]).sort_index()
-data[&quot;close&quot;] = data[&quot;close&quot;] * data[&quot;adj_factor&quot;]
 f = DemoFactor(&quot;demo&quot;, data)
 print(f.calculate().dropna().head())
 </code></pre>
-<h3 id="68-formula-bind">6.8 FORMULA / BIND 示例</h3>
+<h3 id="65-formula-bind">6.5 FORMULA / BIND 示例</h3>
 <pre><code class="language-python">class DemoFactor2(Factor):
-    def calculate(self):
-        # 方式1：字符串公式
-        f1 = self.FORMULA(&quot;EMA(CLOSE, 12) - EMA(CLOSE, 26)&quot;)
+  def calculate(self):
+    # 方式1：字符串公式
+    f1 = self.FORMULA(&quot;EMA(CLOSE, 12) - EMA(CLOSE, 26)&quot;)
 
-        # 方式2：先绑定再调用
-        MA, CLOSE, RANK = self.BIND(&quot;MA&quot;, &quot;CLOSE&quot;, &quot;RANK&quot;)
-        f2 = RANK(CLOSE / MA(CLOSE, 20))
+    # 方式2：先绑定再调用
+    MA, CLOSE, RANK = self.BIND(&quot;MA&quot;, &quot;CLOSE&quot;, &quot;RANK&quot;)
+    f2 = RANK(CLOSE / MA(CLOSE, 20))
 
-        return f1 + f2
+    return f1 + f2
 </code></pre>
-<h3 id="69">6.9 通达信风格函数示例</h3>
+<h3 id="66">6.6 通达信风格函数示例</h3>
 <pre><code class="language-python"># 近20日最高/最低区间位置
 pos = (f.HHV(f.CLOSE, 20) - f.CLOSE) / (f.HHV(f.CLOSE, 20) - f.LLV(f.CLOSE, 20))
 
@@ -2372,7 +3182,7 @@ signal = f.CROSS(f.MA(f.CLOSE, 5), f.MA(f.CLOSE, 20))
 up_days = f.COUNT(f.CLOSE &gt; f.REF(f.CLOSE, 1), 5)
 cond = up_days &gt;= 3
 </code></pre>
-<h3 id="610-winsorize_3sigma-winsorize_mad-standardize_zscore">6.10 winsorize_3sigma / winsorize_mad / standardize_zscore</h3>
+<h3 id="67-winsorize_3sigma-winsorize_mad-standardize_zscore">6.7 winsorize_3sigma / winsorize_mad / standardize_zscore</h3>
 <pre><code class="language-python">factor_raw = f.calculate().dropna()
 
 sample = factor_raw.groupby(level=&quot;date&quot;).head(200)
@@ -2384,25 +3194,27 @@ print(w1.head())
 print(w2.head())
 print(z.head())
 </code></pre>
-<h3 id="611-_prepare_factor_values">6.11 _prepare_factor_values</h3>
+<h3 id="68-_prepare_factor_values">6.8 _prepare_factor_values</h3>
 <pre><code class="language-python">prepared = f._prepare_factor_values(
-    winsorize=&quot;3sigma&quot;,
-    winsorize_param=3,
-    standardize=True,
+  winsorize=&quot;3sigma&quot;,
+  winsorize_param=3,
+  standardize=True,
+  adjust=True,
 )
 print(prepared.dropna().head())
 </code></pre>
-<h3 id="612-get_clean_factor_and_forward_returns">6.12 get_clean_factor_and_forward_returns</h3>
+<h3 id="69-get_clean_factor_and_forward_returns">6.9 get_clean_factor_and_forward_returns</h3>
 <pre><code class="language-python">result = f.get_clean_factor_and_forward_returns(
-    quantiles=5,
-    period=1,
-    winsorize=&quot;3sigma&quot;,
-    winsorize_param=3,
-    standardize=True,
+  quantiles=5,
+  period=1,
+  winsorize=&quot;3sigma&quot;,
+  winsorize_param=3,
+  standardize=True,
+  adjust=True,
 )
 print(result.head())
 </code></pre>
-<h3 id="613-calculate_daily_ic-ic_statistics_analysis-ic_mean_t_test">6.13 calculate_daily_ic / ic_statistics_analysis / ic_mean_t_test</h3>
+<h3 id="610-calculate_daily_ic-ic_statistics_analysis-ic_mean_t_test">6.10 calculate_daily_ic / ic_statistics_analysis / ic_mean_t_test</h3>
 <pre><code class="language-python">daily_ic = f.calculate_daily_ic(result)
 ic_stats = f.ic_statistics_analysis(daily_ic)
 ic_t = f.ic_mean_t_test(daily_ic)
@@ -2411,7 +3223,7 @@ print(daily_ic.dropna().head())
 print(ic_stats)
 print(ic_t)
 </code></pre>
-<h3 id="614-calculate_daily_group_ret-calculate_long_short-performance_analysis-calculate_all_group_performance">6.14 calculate_daily_group_ret / calculate_long_short / performance_analysis / calculate_all_group_performance</h3>
+<h3 id="611-calculate_daily_group_ret-calculate_long_short-performance_analysis-calculate_all_group_performance">6.11 calculate_daily_group_ret / calculate_long_short / performance_analysis / calculate_all_group_performance</h3>
 <pre><code class="language-python">group_ret = f.calculate_daily_group_ret(result)
 ls_ret, ls_perf = f.calculate_long_short(group_ret, period=1)
 group_perf = f.calculate_all_group_performance(group_ret, period=1)
@@ -2422,30 +3234,34 @@ print(ls_perf)
 print(group_perf.head())
 print(ls_perf_check)
 </code></pre>
-<h3 id="615-calculate_group_turnover-calculate_group_turnover_stats">6.15 calculate_group_turnover / calculate_group_turnover_stats</h3>
+<h3 id="612-calculate_group_turnover-calculate_group_turnover_stats">6.12 calculate_group_turnover / calculate_group_turnover_stats</h3>
 <pre><code class="language-python">group_turnover = f.calculate_group_turnover(result)
 group_turnover_stats = f.calculate_group_turnover_stats(group_turnover)
 
 print(group_turnover.head())
 print(group_turnover_stats)
 </code></pre>
-<h3 id="616-calculate_factor_turnover_rate-factor_turnover_stats">6.16 calculate_factor_turnover_rate / factor_turnover_stats</h3>
-<pre><code class="language-python">factor_values = f._prepare_factor_values(winsorize=&quot;3sigma&quot;, standardize=True).dropna()
+<h3 id="613-calculate_factor_turnover_rate-factor_turnover_stats">6.13 calculate_factor_turnover_rate / factor_turnover_stats</h3>
+<pre><code class="language-python">factor_values = f._prepare_factor_values(
+  winsorize=&quot;3sigma&quot;,
+  standardize=True,
+  adjust=True,
+).dropna()
 factor_turnover = f.calculate_factor_turnover_rate(factor_values)
 factor_turnover_stats = f.factor_turnover_stats(factor_turnover)
 
 print(factor_turnover.dropna().head())
 print(factor_turnover_stats)
 </code></pre>
-<h3 id="617-calculate_turnover_return_correlation">6.17 calculate_turnover_return_correlation</h3>
+<h3 id="614-calculate_turnover_return_correlation">6.14 calculate_turnover_return_correlation</h3>
 <pre><code class="language-python">corr_series = f.calculate_turnover_return_correlation(group_turnover, group_ret)
 print(corr_series)
 </code></pre>
-<h3 id="618-calculate_net_returns_with_cost">6.18 calculate_net_returns_with_cost</h3>
+<h3 id="615-calculate_net_returns_with_cost">6.15 calculate_net_returns_with_cost</h3>
 <pre><code class="language-python">group_net_ret, ls_gross_ret, ls_net_ret, ls_net_perf = f.calculate_net_returns_with_cost(
-    group_ret,
-    group_turnover,
-    cost_bps=10,
+  group_ret,
+  group_turnover,
+  cost_bps=10,
 )
 
 print(group_net_ret.head())
@@ -2453,7 +3269,7 @@ print(ls_gross_ret.head())
 print(ls_net_ret.head())
 print(ls_net_perf)
 </code></pre>
-<h3 id="619">6.19 图表函数最小调用</h3>
+<h3 id="616">6.16 图表函数最小调用</h3>
 <pre><code class="language-python">chart1 = f.plot_ic_time_series(daily_ic)
 chart2 = f.plot_ic_cumulative(daily_ic)
 chart3 = f.plot_ic_histogram(daily_ic)
@@ -2466,19 +3282,20 @@ chart9 = f.plot_turnover_return_correlation(corr_series)
 chart10 = f.plot_long_short_net_vs_gross(ls_gross_ret, ls_net_ret, cost_bps=10)
 
 for c in [chart1, chart2, chart3, chart4, chart5, chart6, chart7, chart8, chart9, chart10]:
-    print(type(c))
+  print(type(c))
 </code></pre>
-<h3 id="620-create_factor_analysis_report">6.20 create_factor_analysis_report</h3>
-<pre><code class="language-python">f.create_factor_analysis_report(
-    quantiles=5,
-    period=1,
-    winsorize=&quot;3sigma&quot;,
-    winsorize_param=3,
-    standardize=True,
-    transaction_cost_bps=10,
+<h3 id="617-create_factor_analysis_report">6.17 create_factor_analysis_report</h3>
+<pre><code class="language-python">report_path = f.create_factor_analysis_report(
+  quantiles=5,
+  period=1,
+  winsorize=&quot;3sigma&quot;,
+  winsorize_param=3,
+  standardize=True,
+  transaction_cost_bps=10,
+  adjust=True,
 )
 
-print(&quot;report done: ./output/因子分析报告.html&quot;)
+print(f&quot;report done: {report_path}&quot;)
 </code></pre>
 
 
