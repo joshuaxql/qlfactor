@@ -34,7 +34,6 @@ qlfactor/
 ├─ pyproject.toml
 ├─ README.md
 ├─ API.md
-├─ CLAUDE.md / AGENTS.md   # 给 AI 助手的开发指引（非必需）
 ├─ src/
 │  └─ qlfactor/            # PyPI 包目录（src layout）
 │     ├─ __init__.py
