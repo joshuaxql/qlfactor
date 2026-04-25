@@ -21,7 +21,7 @@
 - 去极值：3sigma、MAD
 - 标准化：截面 Z-Score
 - 行业 / 市值 / 行业+市值中性化
-- **远期收益可选是否复权**（`adjust=True/False`）
+- **统一复权开关**：`adjust=True` 时，因子计算前先复权价格列，远期收益也使用复权价
 - 分位分组、IC、IC 累加、IC 分布、T 检验
 - 分组收益、多空组合收益、换手率、相关性
 - 按换手率扣交易成本后的净收益分析
@@ -137,7 +137,7 @@ my_factor("ma20", data).create_factor_analysis_report(
     industry_neutral=True,
     market_cap_neutral=True,
     industry_data=industry_data,
-    adjust=True,           # 远期收益使用 close*adj_factor 复权
+    adjust=True,           # 因子计算前先复权价格列，远期收益也使用 close*adj_factor
 )
 ```
 
@@ -171,7 +171,10 @@ DV_RATIO, DV_TTM, TOTAL_SHARE, FLOAT_SHARE, FREE_SHARE, TOTAL_MV, CIRC_MV`
 - `standardize`：是否做截面 Z-Score
 - `industry_neutral` / `market_cap_neutral`：是否中性化
 - `transaction_cost_bps`：单边交易成本（bps）
-- `adjust`：远期收益是否使用复权价（默认 `True`，需要 `adj_factor` 列；若数据已在外部预先复权请传 `False`）
+- `adjust`：是否使用复权价。
+    - `True`（默认）：因子计算前会先把 `open/high/low/close/pre_close` 乘 `adj_factor`，且 `next_ret` 也基于复权价。
+    - `False`：因子计算和 `next_ret` 都使用原始价格。
+    - 若你已在外部先做复权，请传 `adjust=False`，避免双重复权。
 - `output_dir`：报告输出目录，默认 `./output`
 
 ### 6.1 单边 10bps 是什么
@@ -209,6 +212,7 @@ DV_RATIO, DV_TTM, TOTAL_SHARE, FLOAT_SHARE, FREE_SHARE, TOTAL_MV, CIRC_MV`
 - Tushare 接口有频率和积分限制，批量下载时建议分批执行。
 - 首次全量下载耗时较长，建议先缩小时间区间调试。
 - 因子计算请保证索引与价格数据严格对齐（`date`, `symbol`）。
+- `adjust=True` 需要 `adj_factor` 列；缺失时会抛 `KeyError`（并记录 info 级别参数校验日志）。
 
 ## 10. 测试
 
@@ -218,4 +222,4 @@ DV_RATIO, DV_TTM, TOTAL_SHARE, FLOAT_SHARE, FREE_SHARE, TOTAL_MV, CIRC_MV`
 python -m unittest discover -s tests
 ```
 
-测试覆盖公式函数、远期收益（含/不含复权）、IC、分组收益、绩效、去极值/标准化、配置加载与日志初始化。
+测试覆盖公式函数、因子侧复权与远期收益复权（含/不含复权）、IC、分组收益、绩效、去极值/标准化、配置加载与日志初始化。

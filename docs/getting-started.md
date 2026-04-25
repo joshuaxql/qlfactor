@@ -8,8 +8,12 @@
 - 可用的 Tushare Pro Token
 
 ## 2. 安装
+从PyPi（推荐）:
+```bash
+pip install qlfactor
+```
 
-开发模式（推荐）：
+开发模式：
 
 ```bash
 uv pip install -e ".[dev]"

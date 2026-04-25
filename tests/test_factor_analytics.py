@@ -65,6 +65,13 @@ class CrossSectionFactor(Factor):
         return self.PE.astype(float)
 
 
+class ClosePriceFactor(Factor):
+    """直接使用 CLOSE，便于验证复权是否发生在因子计算前。"""
+
+    def calculate(self) -> pd.Series:
+        return self.CLOSE.astype(float)
+
+
 class TestForwardReturnsAdjust(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -83,9 +90,7 @@ class TestForwardReturnsAdjust(unittest.TestCase):
         # next_ret 在 (date_i, sym) 上 = sym_close[date_{i+1}] / sym_close[date_i] - 1
         first_idx = result.xs(sym, level="symbol").index[0]
         first_close = sym_close.loc[(first_idx, sym)]
-        next_idx = sym_close.index[
-            sym_close.index.get_loc((first_idx, sym)) + 1
-        ]
+        next_idx = sym_close.index[sym_close.index.get_loc((first_idx, sym)) + 1]
         expected = sym_close.loc[next_idx] / first_close - 1
         actual = result.loc[(first_idx, sym), "next_ret"]
         self.assertAlmostEqual(expected, actual, places=10)
@@ -95,7 +100,9 @@ class TestForwardReturnsAdjust(unittest.TestCase):
             quantiles=5, period=1, adjust=False
         )
         sym = "S00"
-        raw_close = self.data["close"].xs(sym, level="symbol", drop_level=False).sort_index()
+        raw_close = (
+            self.data["close"].xs(sym, level="symbol", drop_level=False).sort_index()
+        )
         first_idx = result.xs(sym, level="symbol").index[0]
         first_close = raw_close.loc[(first_idx, sym)]
         next_idx = raw_close.index[raw_close.index.get_loc((first_idx, sym)) + 1]
@@ -113,6 +120,26 @@ class TestForwardReturnsAdjust(unittest.TestCase):
         f = F("no_adj", data)
         with self.assertRaises(KeyError):
             f.get_clean_factor_and_forward_returns(adjust=True)
+
+    def test_adjust_true_pre_adjusts_factor_input_close(self):
+        f = ClosePriceFactor("close_factor", self.data)
+        result = f.get_clean_factor_and_forward_returns(
+            quantiles=5, period=1, adjust=True
+        )
+        idx = result.index[0]
+        expected = self.data.loc[idx, "close"] * self.data.loc[idx, "adj_factor"]
+        actual = result.loc[idx, "factor"]
+        self.assertAlmostEqual(expected, actual, places=10)
+
+    def test_adjust_false_keeps_raw_factor_input_close(self):
+        f = ClosePriceFactor("close_factor", self.data)
+        result = f.get_clean_factor_and_forward_returns(
+            quantiles=5, period=1, adjust=False
+        )
+        idx = result.index[0]
+        expected = self.data.loc[idx, "close"]
+        actual = result.loc[idx, "factor"]
+        self.assertAlmostEqual(expected, actual, places=10)
 
 
 class TestStatistics(unittest.TestCase):

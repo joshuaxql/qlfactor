@@ -28,6 +28,7 @@ class Factor(ABC):
         self.name = name
         self.data = data
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+        self._prepared_factor_cache: dict[tuple, pd.Series] = {}
 
     def _series_stats(self, s: pd.Series) -> str:
         return (
@@ -708,20 +709,42 @@ class Factor(ABC):
         market_cap_col: str = "total_mv",
         market_cap_log: bool = True,
         industry_data: pd.DataFrame | None = None,
+        adjust: bool = True,
     ) -> pd.Series:
         """对原始因子值做去极值和标准化处理。"""
+        cache_key = (
+            winsorize,
+            winsorize_param,
+            standardize,
+            industry_neutral,
+            market_cap_neutral,
+            industry_col,
+            market_cap_col,
+            market_cap_log,
+            id(industry_data) if industry_data is not None else None,
+            adjust,
+        )
+        if cache_key in self._prepared_factor_cache:
+            return self._prepared_factor_cache[cache_key]
+
         self.logger.info(
             "开始计算因子值: name=%s, winsorize=%s, winsorize_param=%s, "
-            "standardize=%s, industry_neutral=%s, market_cap_neutral=%s",
+            "standardize=%s, industry_neutral=%s, market_cap_neutral=%s, adjust=%s",
             self.name,
             winsorize,
             winsorize_param,
             standardize,
             industry_neutral,
             market_cap_neutral,
+            adjust,
         )
         try:
-            factor = self.calculate()
+            original_data = self.data
+            self.data = self._factor_input_data(adjust)
+            try:
+                factor = self.calculate()
+            finally:
+                self.data = original_data
             self.logger.info("原始因子统计: %s", self._series_stats(factor))
 
             if winsorize == "3sigma":
@@ -773,7 +796,12 @@ class Factor(ABC):
                 factor = factor.groupby(level="date").transform(self.standardize_zscore)
 
             self.logger.info("处理后因子统计: %s", self._series_stats(factor))
+            self._prepared_factor_cache[cache_key] = factor
             return factor
+        except KeyError as exc:
+            self.logger.info("因子值计算参数校验失败: %s (%s)", self.name, exc)
+            self.logger.debug("参数校验失败堆栈", exc_info=True)
+            raise
         except Exception:
             self.logger.exception("因子值计算失败: %s", self.name)
             raise
@@ -792,6 +820,28 @@ class Factor(ABC):
                 "如已在外部预先复权，请显式传 adjust=False"
             )
         return self.data["close"] * self.data["adj_factor"]
+
+    def _factor_input_data(self, adjust: bool) -> pd.DataFrame:
+        """构造用于因子计算的数据视图。
+
+        adjust=True 时，先对价格列做复权，再执行 ``calculate()``。
+        """
+        if not adjust:
+            return self.data
+
+        if "adj_factor" not in self.data.columns:
+            raise KeyError(
+                "adjust=True 需要 self.data 包含 adj_factor 列；"
+                "如已在外部预先复权，请显式传 adjust=False"
+            )
+
+        adj = self.data["adj_factor"].astype(float)
+        factor_data = self.data.copy()
+        price_cols = ["open", "high", "low", "close", "pre_close"]
+        for col in price_cols:
+            if col in factor_data.columns:
+                factor_data[col] = factor_data[col].astype(float) * adj
+        return factor_data
 
     def get_clean_factor_and_forward_returns(
         self,
@@ -822,7 +872,9 @@ class Factor(ABC):
             market_cap_col: 市值字段名。
             market_cap_log: 市值中性化是否使用对数市值。
             industry_data: 外部行业数据（当 ``industry_col`` 不在 ``self.data`` 时使用）。
-            adjust: 远期收益是否使用复权价（``close * adj_factor``）。
+            adjust: 是否使用复权价（``close * adj_factor``）。
+                ``True`` 时会在因子计算前先对价格列
+                （``open/high/low/close/pre_close``）复权，且远期收益也基于复权价。
                 ``True``（默认）需要 ``self.data`` 含 ``adj_factor`` 列；
                 ``False`` 直接使用原始 ``close``——适合数据已在外部预先复权的情况。
 
@@ -839,6 +891,7 @@ class Factor(ABC):
             market_cap_col=market_cap_col,
             market_cap_log=market_cap_log,
             industry_data=industry_data,
+            adjust=adjust,
         )
 
         price = self._forward_price(adjust)
@@ -1417,7 +1470,9 @@ class Factor(ABC):
             market_cap_col: 市值字段名。
             market_cap_log: 市值中性化是否使用对数市值。
             industry_data: 外部行业数据。
-            adjust: 远期收益是否使用复权价（``close * adj_factor``）。
+            adjust: 是否使用复权价（``close * adj_factor``）。
+                ``True`` 时会在因子计算前先对价格列
+                （``open/high/low/close/pre_close``）复权，且远期收益也基于复权价。
             output_dir: HTML 报告输出目录，自动创建。
 
         Returns:
@@ -1477,6 +1532,7 @@ class Factor(ABC):
                 market_cap_col=market_cap_col,
                 market_cap_log=market_cap_log,
                 industry_data=industry_data,
+                adjust=adjust,
             ).dropna()
             self.logger.info(
                 "用于换手率的因子值: %s", self._series_stats(factor_values)
@@ -1563,4 +1619,5 @@ if __name__ == "__main__":
         market_cap_neutral=True,
         industry_col="l1_code",
         industry_data=industry_data,
+        adjust=True,
     )
