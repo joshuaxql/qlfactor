@@ -1,0 +1,9 @@
+site_name: qlfactor
+theme:
+  name: material
+  palette:
+    - scheme: preference
+nav:
+  - 首页: index.md
+  - 快速开始: getting-started.md
+  - API 参考: API.md
