@@ -72,6 +72,13 @@ class ClosePriceFactor(Factor):
         return self.CLOSE.astype(float)
 
 
+class ConstantFactor(Factor):
+    """返回常数因子，用于触发分组退化场景。"""
+
+    def calculate(self) -> pd.Series:
+        return pd.Series(1.0, index=self.data.index)
+
+
 class TestForwardReturnsAdjust(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -214,6 +221,157 @@ class TestPreprocessing(unittest.TestCase):
     def test_calculate_method_is_abstract(self):
         with self.assertRaises(TypeError):
             Factor("x", self.data)  # type: ignore[abstract]
+
+
+class TestEdgeCases(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.data = _make_panel(n_dates=10, n_symbols=6)
+
+    def test_get_clean_rejects_non_positive_period(self):
+        f = CrossSectionFactor("xs", self.data)
+        with self.assertRaises(ValueError):
+            f.get_clean_factor_and_forward_returns(period=0, adjust=False)
+        with self.assertRaises(ValueError):
+            f.get_clean_factor_and_forward_returns(period=-1, adjust=False)
+
+    def test_get_clean_raises_when_groups_are_insufficient(self):
+        f = ConstantFactor("const", self.data)
+        with self.assertRaises(ValueError):
+            f.get_clean_factor_and_forward_returns(
+                quantiles=5,
+                period=1,
+                adjust=False,
+            )
+
+    def test_calculate_long_short_requires_two_groups(self):
+        f = CrossSectionFactor("xs", self.data)
+        idx = pd.date_range("2024-01-01", periods=3, freq="D")
+        group_ret = pd.DataFrame({"组1": [0.01, 0.02, 0.03]}, index=idx)
+        with self.assertRaises(ValueError):
+            f.calculate_long_short(group_ret, period=1)
+
+    def test_calculate_net_returns_requires_two_groups(self):
+        f = CrossSectionFactor("xs", self.data)
+        idx = pd.date_range("2024-01-01", periods=3, freq="D")
+        group_ret = pd.DataFrame({"组1": [0.01, 0.02, 0.03]}, index=idx)
+        group_turnover = pd.DataFrame({"组1": [0.5, 0.5, 0.5]}, index=idx)
+        with self.assertRaises(ValueError):
+            f.calculate_net_returns_with_cost(
+                group_ret,
+                group_turnover,
+                cost_bps=10,
+            )
+
+    def test_single_side_cost_is_applied_on_both_trade_sides(self):
+        f = CrossSectionFactor("xs", self.data)
+        idx = pd.date_range("2024-01-01", periods=3, freq="D")
+        group_ret = pd.DataFrame(
+            {
+                "组1": [0.01, 0.02, 0.03],
+                "组2": [0.03, 0.04, 0.05],
+            },
+            index=idx,
+        )
+        group_turnover = pd.DataFrame(
+            {
+                "组1": [0.5, 0.5, 0.5],
+                "组2": [0.5, 0.5, 0.5],
+            },
+            index=idx,
+        )
+
+        group_net_ret, long_short_gross, long_short_net, _ = (
+            f.calculate_net_returns_with_cost(
+                group_ret,
+                group_turnover,
+                cost_bps=10,
+            )
+        )
+
+        # 10bps 单边成本 -> 双边调仓总成本系数 = 2 * 10 / 10000 = 0.002
+        expected_group_cost = group_turnover * 0.002
+        pd.testing.assert_series_equal(
+            group_net_ret["组1"],
+            group_ret["组1"] - expected_group_cost["组1"],
+            check_names=False,
+        )
+        pd.testing.assert_series_equal(
+            group_net_ret["组2"],
+            group_ret["组2"] - expected_group_cost["组2"],
+            check_names=False,
+        )
+
+        expected_ls_gross = group_ret["组2"] - group_ret["组1"]
+        expected_ls_net = expected_ls_gross - (group_turnover["组1"] + group_turnover["组2"]) * 0.002
+        pd.testing.assert_series_equal(long_short_gross, expected_ls_gross, check_names=False)
+        pd.testing.assert_series_equal(long_short_net, expected_ls_net, check_names=False)
+
+    def test_prepare_factor_cache_refreshes_after_inplace_data_change(self):
+        data = self.data.copy()
+        f = ClosePriceFactor("close_factor", data)
+        before = f._prepare_factor_values(adjust=False)
+        idx = before.index[0]
+        original = float(before.loc[idx])
+
+        data.loc[idx, "close"] = data.loc[idx, "close"] + 10.0
+        after = f._prepare_factor_values(adjust=False)
+
+        self.assertNotEqual(float(after.loc[idx]), original)
+
+    def test_performance_analysis_rejects_non_positive_period(self):
+        f = CrossSectionFactor("xs", self.data)
+        with self.assertRaises(ValueError):
+            f.performance_analysis(pd.Series([0.01, -0.01]), period=0)
+
+    def test_group_turnover_uses_equal_weight_rebalance_formula(self):
+        f = CrossSectionFactor("xs", self.data)
+        dates = pd.to_datetime(["2024-01-01", "2024-01-02"])
+        symbols = ["A", "B", "C", "D"]
+        idx = pd.MultiIndex.from_product([dates, symbols], names=["date", "symbol"])
+        result = pd.DataFrame(index=idx)
+        result["factor"] = 1.0
+        result["next_ret"] = 0.0
+        # day1: 组1={A,B}, 组2={C,D}; day2: 组1={A,B,C,D}
+        result["factor_quantile"] = [1, 1, 2, 2, 1, 1, 1, 1]
+
+        group_turnover = f.calculate_group_turnover(result)
+        self.assertTrue(np.isnan(group_turnover.loc[pd.Timestamp("2024-01-01"), "组1"]))
+        # 组1从2只扩容到4只，重合2只 => 1 - 2 / max(2,4) = 0.5
+        self.assertAlmostEqual(group_turnover.loc[pd.Timestamp("2024-01-02"), "组1"], 0.5, places=10)
+
+    def test_group_turnover_respects_missing_middle_dates(self):
+        f = CrossSectionFactor("xs", self.data)
+        dates = pd.to_datetime(["2024-01-01", "2024-01-02", "2024-01-03"])
+        symbols = ["A", "B"]
+        idx = pd.MultiIndex.from_product([dates, symbols], names=["date", "symbol"])
+        result = pd.DataFrame(index=idx)
+        result["factor"] = 1.0
+        result["next_ret"] = 0.0
+        # day2 该组缺失，不能把 day3 与 day1 直接比较
+        result["factor_quantile"] = [1, 1, np.nan, np.nan, 1, 1]
+
+        group_turnover = f.calculate_group_turnover(result)
+        self.assertEqual(group_turnover.index.tolist(), dates.tolist())
+        self.assertAlmostEqual(group_turnover.loc[pd.Timestamp("2024-01-02"), "组1"], 1.0, places=10)
+        self.assertAlmostEqual(group_turnover.loc[pd.Timestamp("2024-01-03"), "组1"], 1.0, places=10)
+
+    def test_ic_stats_and_t_test_handle_near_constant_series(self):
+        f = CrossSectionFactor("xs", self.data)
+        near_const_ic = pd.Series(
+            [0.1, 0.1 + 1e-12, 0.1 - 1e-12],
+            index=pd.date_range("2024-01-01", periods=3, freq="D"),
+        )
+
+        ic_stats = f.ic_statistics_analysis(near_const_ic)
+        self.assertEqual(ic_stats["IC标准差"], 0.0)
+        self.assertEqual(ic_stats["IC信息比率(IR)"], 0.0)
+        self.assertEqual(ic_stats["IC信息比率(IR,年化)"], 0.0)
+
+        t_test = f.ic_mean_t_test(near_const_ic)
+        self.assertTrue(np.isnan(t_test["T统计量"]))
+        self.assertTrue(np.isnan(t_test["P值"]))
+        self.assertEqual(t_test["显著性"], "方差过小")
 
 
 if __name__ == "__main__":

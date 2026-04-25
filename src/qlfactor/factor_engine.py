@@ -42,6 +42,36 @@ class Factor(ABC):
             f"columns={list(df.columns)}"
         )
 
+    def _frame_fingerprint(self, df: pd.DataFrame | None) -> tuple | None:
+        """生成 DataFrame 的缓存指纹，用于避免命中过期缓存。"""
+        if df is None:
+            return None
+        try:
+            values_hash = int(pd.util.hash_pandas_object(df, index=True).sum())
+        except Exception:
+            values_hash = None
+        return (
+            id(df),
+            df.shape,
+            tuple(df.columns.tolist()),
+            tuple(df.dtypes.astype(str).tolist()),
+            values_hash,
+        )
+
+    def _ordered_group_columns(
+        self,
+        cols: pd.Index,
+        *,
+        context: str,
+        min_groups: int = 2,
+    ) -> list:
+        ordered = sorted(cols, key=lambda x: float(str(x).replace("组", "")))
+        if len(ordered) < min_groups:
+            raise ValueError(
+                f"{context}至少需要 {min_groups} 个有效分组列，当前仅 {len(ordered)} 个。"
+            )
+        return ordered
+
     # ==================== 常用字段别名（公式风格） ====================
     @property
     def OPEN(self) -> pd.Series:
@@ -712,6 +742,8 @@ class Factor(ABC):
         adjust: bool = True,
     ) -> pd.Series:
         """对原始因子值做去极值和标准化处理。"""
+        data_fp = self._frame_fingerprint(self.data)
+        industry_fp = self._frame_fingerprint(industry_data)
         cache_key = (
             winsorize,
             winsorize_param,
@@ -721,7 +753,8 @@ class Factor(ABC):
             industry_col,
             market_cap_col,
             market_cap_log,
-            id(industry_data) if industry_data is not None else None,
+            data_fp,
+            industry_fp,
             adjust,
         )
         if cache_key in self._prepared_factor_cache:
@@ -881,6 +914,15 @@ class Factor(ABC):
         Returns:
             干净的长格式 DataFrame，列含：``date, symbol, factor, next_ret, factor_quantile``。
         """
+        if not isinstance(period, (int, np.integer)):
+            raise TypeError("period 必须是整数")
+        if period <= 0:
+            raise ValueError("period 必须大于 0")
+        if not isinstance(quantiles, (int, np.integer)):
+            raise TypeError("quantiles 必须是整数")
+        if quantiles < 2:
+            raise ValueError("quantiles 至少为 2")
+
         factor = self._prepare_factor_values(
             winsorize=winsorize,
             winsorize_param=winsorize_param,
@@ -907,6 +949,13 @@ class Factor(ABC):
             lambda x: pd.qcut(x, q=quantiles, labels=False, duplicates="drop") + 1
         )
 
+        valid_groups = int(result["factor_quantile"].nunique(dropna=True))
+        if valid_groups < 2:
+            raise ValueError(
+                "有效因子分组不足 2 组，无法进行分组收益/多空分析；"
+                "请检查因子离散度或降低 quantiles。"
+            )
+
         return result
 
     def calculate_daily_ic(self, result: pd.DataFrame) -> pd.Series:
@@ -926,29 +975,36 @@ class Factor(ABC):
 
     def ic_statistics_analysis(self, daily_ic: pd.Series) -> pd.Series:
         """计算 IC 统计指标：IC 均值、标准差、信息比率（IR）。"""
+        ic = pd.to_numeric(daily_ic, errors="coerce").dropna()
+        ic_mean = float(ic.mean()) if not ic.empty else np.nan
+        ic_std = float(ic.std()) if not ic.empty else np.nan
+        stable_std = np.nan if pd.isna(ic_std) else (0.0 if np.isclose(ic_std, 0.0, atol=1e-8) else ic_std)
+
+        if pd.isna(stable_std) or stable_std == 0:
+            ir = 0.0
+            ir_annual = 0.0
+        else:
+            ir = ic_mean / stable_std
+            ir_annual = ir * np.sqrt(252)
+
         ic_analysis = pd.Series(
             {
-                "IC均值": round(daily_ic.mean(), 4),
-                "IC标准差": round(daily_ic.std(), 4),
-                "IC信息比率(IR)": (
-                    round(daily_ic.mean() / daily_ic.std(), 4)
-                    if daily_ic.std() != 0
-                    else 0
-                ),
-                "IC信息比率(IR,年化)": (
-                    round(daily_ic.mean() / daily_ic.std() * np.sqrt(252), 4)
-                    if daily_ic.std() != 0
-                    else 0
-                ),
+                "IC均值": round(ic_mean, 4),
+                "IC标准差": round(stable_std, 4),
+                "IC信息比率(IR)": round(ir, 4),
+                "IC信息比率(IR,年化)": round(ir_annual, 4),
             }
         )
         return ic_analysis
 
     def ic_mean_t_test(self, daily_ic: pd.Series) -> pd.Series:
         """对每日 IC 序列进行单样本 T 检验，检验 IC 均值是否显著不为零。"""
-        ic = daily_ic.dropna()
+        ic = pd.to_numeric(daily_ic, errors="coerce").dropna()
         if len(ic) < 2:
             return pd.Series({"T统计量": np.nan, "P值": np.nan, "显著性": "样本不足"})
+        ic_std = float(ic.std())
+        if np.isclose(ic_std, 0.0, atol=1e-8):
+            return pd.Series({"T统计量": np.nan, "P值": np.nan, "显著性": "方差过小"})
         t_stat, p_value = stats.ttest_1samp(ic, popmean=0)
         significant = "显著（p<0.05）" if p_value < 0.05 else "不显著（p≥0.05）"
 
@@ -1036,12 +1092,19 @@ class Factor(ABC):
         return group_ret
 
     def calculate_group_turnover(self, result: pd.DataFrame) -> pd.DataFrame:
-        """计算各因子分组的日度持仓换手率（``1 - 前后两日持仓重合比例``）。"""
+        """计算各因子分组的日度持仓换手率（等权一边换手口径）。
+
+        对于相邻两日持仓集合 ``prev_set`` 和 ``cur_set``，换手率定义为：
+        ``1 - |交集| / max(len(prev_set), len(cur_set))``。
+        """
         members = (
             result.reset_index()[["date", "symbol", "factor_quantile"]]
             .dropna(subset=["factor_quantile"])
             .copy()
         )
+        all_dates = result.index.get_level_values("date").unique().sort_values()
+        if members.empty:
+            return pd.DataFrame(index=all_dates)
         quantiles = sorted(members["factor_quantile"].unique())
 
         turnover_map: dict[str, pd.Series] = {}
@@ -1050,22 +1113,28 @@ class Factor(ABC):
                 members[members["factor_quantile"] == q]
                 .groupby("date")["symbol"]
                 .apply(set)
-                .sort_index()
+                .reindex(all_dates)
             )
+            by_date = by_date.apply(lambda x: x if isinstance(x, set) else set())
 
             prev_set: set[str] | None = None
             values: list[float] = []
             for cur_set in by_date:
-                if prev_set is None or len(prev_set) == 0:
+                if prev_set is None:
                     values.append(np.nan)
                 else:
+                    denom = max(len(prev_set), len(cur_set))
+                    if denom == 0:
+                        values.append(0.0)
+                        prev_set = cur_set
+                        continue
                     overlap = len(cur_set & prev_set)
-                    values.append(1 - overlap / len(prev_set))
+                    values.append(1 - overlap / denom)
                 prev_set = cur_set
 
             turnover_map[f"组{int(q)}"] = pd.Series(values, index=by_date.index)
 
-        return pd.DataFrame(turnover_map).sort_index()
+        return pd.DataFrame(turnover_map, index=all_dates).sort_index()
 
     def calculate_group_turnover_stats(
         self, group_turnover: pd.DataFrame
@@ -1153,21 +1222,24 @@ class Factor(ABC):
             group_ret, join="inner", axis=0
         )
         common_cols = aligned_turnover.columns.intersection(aligned_ret.columns)
+        ordered_cols = self._ordered_group_columns(
+            common_cols, context="计算净收益", min_groups=2
+        )
+        ordered_index = pd.Index(ordered_cols)
 
         group_net_ret = (
-            aligned_ret[common_cols] - aligned_turnover[common_cols] * cost_rate
+            aligned_ret[ordered_index]
+            - aligned_turnover[ordered_index] * (2 * cost_rate)
         )
 
-        ordered_cols = sorted(
-            common_cols, key=lambda x: float(str(x).replace("组", ""))
-        )
         low_col = ordered_cols[0]
         high_col = ordered_cols[-1]
 
         long_short_gross = aligned_ret[high_col] - aligned_ret[low_col]
         long_short_net = (
             long_short_gross
-            - (aligned_turnover[high_col] + aligned_turnover[low_col]) * cost_rate
+            - (aligned_turnover[high_col] + aligned_turnover[low_col])
+            * (2 * cost_rate)
         )
         long_short_net_perf = self.performance_analysis(long_short_net)
         long_short_net_perf.name = f"多空净收益({high_col}-{low_col}, {cost_bps}bps)"
@@ -1176,7 +1248,11 @@ class Factor(ABC):
 
     def performance_analysis(self, ret_series: pd.Series, period: int = 1) -> pd.Series:
         """计算单组收益的核心量化指标。"""
-        annual_factor = 252 / max(period, 1)
+        if not isinstance(period, (int, np.integer)):
+            raise TypeError("period 必须是整数")
+        if period <= 0:
+            raise ValueError("period 必须大于 0")
+        annual_factor = 252 / period
         ann_ret = ret_series.mean() * annual_factor
         ann_vol = ret_series.std() * np.sqrt(annual_factor)
         sharpe = ann_ret / ann_vol if ann_vol != 0 else 0
@@ -1200,8 +1276,8 @@ class Factor(ABC):
         self, group_ret: pd.DataFrame, period: int = 1
     ) -> tuple[pd.Series, pd.Series]:
         """计算多空组合收益（最高因子组 - 最低因子组）。"""
-        ordered_cols = sorted(
-            group_ret.columns, key=lambda x: float(str(x).replace("组", ""))
+        ordered_cols = self._ordered_group_columns(
+            group_ret.columns, context="计算多空组合收益", min_groups=2
         )
         low_col = ordered_cols[0]
         high_col = ordered_cols[-1]
