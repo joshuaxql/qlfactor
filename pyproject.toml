@@ -1,16 +1,54 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "qlfactor"
 version = "0.1.0"
-description = "Add your description here"
+description = "A 股因子研究工具：Tushare 日线数据下载与因子分析引擎（IC、分组收益、换手率、成本扣减、HTML 报告）"
 readme = "README.md"
 requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "joshuaxql", email = "qiuleiustc@gmail.com" }]
+keywords = ["quant", "factor", "a-shares", "tushare", "backtest"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
 dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.1",
     "pyarrow>=23.0.1",
     "pyecharts>=2.1.0",
     "python-dotenv>=1.2.2",
     "scipy>=1.17.1",
+    "tqdm>=4.66",
     "tushare>=1.4.29",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.2",
+    "twine>=5.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/joshuaxql/qlfactor"
+Issues = "https://github.com/joshuaxql/qlfactor/issues"
+
+[project.scripts]
+qlfactor = "qlfactor.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [[tool.uv.index]]
 url = "https://pypi.mirrors.ustc.edu.cn/simple/"

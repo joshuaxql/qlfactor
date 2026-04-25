@@ -132,7 +132,7 @@
 - name：因子名。
 - data：日线数据，索引为 (date, symbol)。
 
-### 3.1.2 caculate(self) -> pd.Series
+### 3.1.2 calculate(self) -> pd.Series
 
 功能：
 - 抽象方法，由子类实现具体因子值计算。
@@ -214,7 +214,7 @@
 - 对子类计算出的原始因子值执行清洗预处理。
 
 流程：
-1. 调用 caculate。
+1. 调用 calculate。
 2. 按 date 截面去极值（可选）。
 3. 按 date 截面标准化（可选）。
 
@@ -238,7 +238,7 @@
 返回：
 - DataFrame，核心列：factor、close、next_ret、factor_quantile。
 
-### 3.1.8 caculate_daily_ic(self, result: pd.DataFrame) -> pd.Series
+### 3.1.8 calculate_daily_ic(self, result: pd.DataFrame) -> pd.Series
 
 功能：
 - 计算日度 Rank IC（Spearman）。
@@ -514,14 +514,14 @@ dl.merge()
 print("stocks_daily.parquet done")
 ```
 
-### 6.7 Factor 子类最小实现（对应 caculate）
+### 6.7 Factor 子类最小实现（对应 calculate）
 
 ```python
 import pandas as pd
 from src.factor_engine import Factor
 
 class DemoFactor(Factor):
-	def caculate(self):
+	def calculate(self):
 		# 公式写法：无需在表达式里写 self.
 		return self.FORMULA("MA(TURNOVER_RATE, 20) / TURNOVER_RATE")
 
@@ -529,14 +529,14 @@ data = pd.read_parquet("./data/stocks_daily.parquet")
 data = data.set_index(["date", "symbol"]).sort_index()
 data["close"] = data["close"] * data["adj_factor"]
 f = DemoFactor("demo", data)
-print(f.caculate().dropna().head())
+print(f.calculate().dropna().head())
 ```
 
 ### 6.8 FORMULA / BIND 示例
 
 ```python
 class DemoFactor2(Factor):
-	def caculate(self):
+	def calculate(self):
 		# 方式1：字符串公式
 		f1 = self.FORMULA("EMA(CLOSE, 12) - EMA(CLOSE, 26)")
 
@@ -564,7 +564,7 @@ cond = up_days >= 3
 ### 6.10 winsorize_3sigma / winsorize_mad / standardize_zscore
 
 ```python
-factor_raw = f.caculate().dropna()
+factor_raw = f.calculate().dropna()
 
 sample = factor_raw.groupby(level="date").head(200)
 w1 = f.winsorize_3sigma(sample, n=3)
@@ -600,10 +600,10 @@ result = f.get_clean_factor_and_forward_returns(
 print(result.head())
 ```
 
-### 6.13 caculate_daily_ic / ic_statistics_analysis / ic_mean_t_test
+### 6.13 calculate_daily_ic / ic_statistics_analysis / ic_mean_t_test
 
 ```python
-daily_ic = f.caculate_daily_ic(result)
+daily_ic = f.calculate_daily_ic(result)
 ic_stats = f.ic_statistics_analysis(daily_ic)
 ic_t = f.ic_mean_t_test(daily_ic)
 

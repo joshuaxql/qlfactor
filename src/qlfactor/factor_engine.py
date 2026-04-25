@@ -1,12 +1,20 @@
-from abc import ABC, abstractmethod
+"""因子分析引擎：抽象基类 :class:`Factor`，覆盖去极值/标准化、行业+市值中性化、
+IC、分组收益、换手率、成本扣减与 HTML 报告生成。"""
+
+from __future__ import annotations
+
 import logging
-import pandas as pd
-from datetime import datetime
+from abc import ABC, abstractmethod
+from pathlib import Path
+
 import numpy as np
-from pyecharts.charts import Line, Bar, Page
+import pandas as pd
 from pyecharts import options as opts
+from pyecharts.charts import Bar, Line, Page
 from pyecharts.globals import ThemeType
 from scipy import stats
+
+logger = logging.getLogger(__name__)
 
 
 class Factor(ABC):
@@ -14,8 +22,8 @@ class Factor(ABC):
         """初始化因子。
 
         Args:
-            name: 因子名称
-            data: 股票日线数据，MultiIndex (date, symbol)，包含 close 等列
+            name: 因子名称。
+            data: 股票日线数据，MultiIndex ``(date, symbol)``，至少包含 ``close`` 列。
         """
         self.name = name
         self.data = data
@@ -135,7 +143,7 @@ class Factor(ABC):
         return self.data["circ_mv"]
 
     def _resolve_series(self, x: str | pd.Series) -> pd.Series:
-        """将字段名或Series统一解析为Series。"""
+        """将字段名或 Series 统一解析为 Series。"""
         if isinstance(x, pd.Series):
             return x
         if isinstance(x, str):
@@ -143,7 +151,7 @@ class Factor(ABC):
             if key in self.data.columns:
                 return self.data[key]
             raise KeyError(f"字段不存在: {x}")
-        raise TypeError("参数必须是字段名(str)或pandas.Series")
+        raise TypeError("参数必须是字段名(str)或 pandas.Series")
 
     def _resolve_value(self, x: str | pd.Series | float | int | bool) -> pd.Series:
         """将字段名/Series/标量统一解析为与 data 对齐的 Series。"""
@@ -155,8 +163,92 @@ class Factor(ABC):
             s = s.reindex(self.data.index)
         return s
 
+    def _align_series_to_data(self, s: pd.Series) -> pd.Series:
+        if not s.index.equals(self.data.index):
+            s = s.reindex(self.data.index)
+        return s
+
+    def _resolve_external_column_series(
+        self,
+        col: str,
+        external_data: pd.DataFrame | None,
+    ) -> pd.Series:
+        """从行业成分变更表解析列并对齐到 ``self.data.index``。"""
+        if external_data is None:
+            raise KeyError(f"字段不存在: {col}")
+
+        if not isinstance(external_data, pd.DataFrame):
+            raise TypeError("industry_data 必须是 DataFrame")
+
+        if col not in external_data.columns:
+            raise KeyError(f"外部数据缺少字段: {col}")
+
+        if not {"ts_code", "in_date"}.issubset(set(external_data.columns)):
+            raise ValueError(
+                "industry_data 仅支持行业成分变更表，必须包含字段: ts_code, in_date, "
+                f"{col}（可选 out_date）"
+            )
+
+        members = external_data[["ts_code", "in_date", col]].copy()
+        if "out_date" in external_data.columns:
+            members["out_date"] = external_data["out_date"]
+        else:
+            members["out_date"] = pd.NaT
+
+        members = members.rename(columns={"ts_code": "symbol"})
+        members["in_date"] = pd.to_datetime(members["in_date"], errors="coerce").astype(
+            "datetime64[ns]"
+        )
+        members["out_date"] = pd.to_datetime(
+            members["out_date"], errors="coerce"
+        ).astype("datetime64[ns]")
+        members = members.dropna(subset=["symbol", "in_date", col])
+        members = members.sort_values(["symbol", "in_date"]).drop_duplicates(
+            ["symbol", "in_date"], keep="last"
+        )
+
+        query = self.data.index.to_frame(index=False)[["date", "symbol"]]
+        query = query.copy()
+        query["date_raw"] = query["date"]
+        query["date"] = pd.to_datetime(query["date"]).astype("datetime64[ns]")
+        query = query.sort_values(["symbol", "date"])
+
+        mapped_parts: list[pd.DataFrame] = []
+        for sym, qg in query.groupby("symbol", sort=False):
+            qg = qg.sort_values("date")
+            mg = members[members["symbol"] == sym].sort_values("in_date")
+
+            if mg.empty:
+                part = qg.copy()
+                part[col] = np.nan
+                part["out_date"] = pd.NaT
+                mapped_parts.append(part)
+                continue
+
+            mg = mg.drop(columns=["symbol"])
+            part = pd.merge_asof(
+                qg,
+                mg,
+                left_on="date",
+                right_on="in_date",
+                direction="backward",
+            )
+            mapped_parts.append(part)
+
+        if len(mapped_parts) == 0:
+            return pd.Series(np.nan, index=self.data.index)
+
+        mapped = pd.concat(mapped_parts, ignore_index=True, sort=False)
+
+        invalid = mapped["out_date"].notna() & (mapped["date"] > mapped["out_date"])
+        mapped.loc[invalid, col] = np.nan
+
+        s = mapped.set_index(["date_raw", "symbol"])[col]
+        s.index = s.index.set_names(["date", "symbol"])
+        return self._align_series_to_data(s)
+
     def _formula_namespace(self) -> dict[str, object]:
-        """构造公式执行上下文（可直接使用 MA(CLOSE, 20) 风格）。"""
+        """构造公式执行上下文（可直接使用 ``MA(CLOSE, 20)`` 风格）。"""
         return {
             # 字段
             "OPEN": self.OPEN,
@@ -212,7 +304,7 @@ class Factor(ABC):
         }
 
     def FORMULA(self, expr: str, **extra: object) -> pd.Series:
-        """执行公式表达式，支持 MA(CLOSE, 20) 这类无 self 写法。"""
+        """执行公式表达式，支持 ``MA(CLOSE, 20)`` 这类无 ``self`` 写法。"""
         ns = self._formula_namespace()
         ns.update(extra)
         self.logger.info("执行公式: %s", expr)
@@ -233,7 +325,7 @@ class Factor(ABC):
             raise
 
     def BIND(self, *names: str):
-        """一次性绑定名称，减少重复写 self.。"""
+        """一次性绑定名称，减少重复写 ``self.``。"""
         ns = self._formula_namespace()
         if not names:
             return ns
@@ -443,7 +535,7 @@ class Factor(ABC):
         m: int = 1,
         min_periods: int = 1,
     ) -> pd.Series:
-        """通达信SMA：Y=(M*X+(N-M)*Y')/N。"""
+        """通达信 SMA：``Y = (M*X + (N-M)*Y') / N``。"""
         if n <= 0:
             raise ValueError("n 必须大于 0")
         if not (0 < m <= n):
@@ -467,24 +559,16 @@ class Factor(ABC):
         return (sa > sb) & (prev_a <= prev_b)
 
     @abstractmethod
-    def caculate(self) -> pd.Series:
+    def calculate(self) -> pd.Series:
         """计算因子值，必须由子类实现。
 
         Returns:
-            因子值 Series，索引为 (date, symbol)
+            因子值 Series，索引为 ``(date, symbol)``。
         """
         ...
 
     def winsorize_3sigma(self, factor: pd.Series, n: int = 3) -> pd.Series:
-        """3-sigma法去极值：超出 n 倍标准差的 values 替换为边界值。
-
-        Args:
-            factor: 因子值序列
-            n: 标准差倍数阈值（默认3）
-
-        Returns:
-            去极值后的因子 Series
-        """
+        """3-sigma 法去极值：超出 n 倍标准差的 values 替换为边界值。"""
         mean = factor.mean()
         std = factor.std()
         if pd.isna(std) or std == 0:
@@ -494,15 +578,7 @@ class Factor(ABC):
         return factor.clip(lower=lower, upper=upper)
 
     def winsorize_mad(self, factor: pd.Series, k: float = 3) -> pd.Series:
-        """MAD法去极值：中位数绝对偏差法，超出 k*MAD 的 values 替换为边界值。
-
-        Args:
-            factor: 因子值序列
-            k: MAD倍数阈值（默认3）
-
-        Returns:
-            去极值后的因子 Series
-        """
+        """MAD 法去极值：中位数绝对偏差法，超出 k*MAD 的 values 替换为边界值。"""
         median = factor.median()
         mad = (factor - median).abs().median()
         if mad == 0:
@@ -512,35 +588,140 @@ class Factor(ABC):
         return factor.clip(lower=lower, upper=upper)
 
     def standardize_zscore(self, factor: pd.Series) -> pd.Series:
-        """Z-score标准化：(value - mean) / std，输出均值为0，标准差为1。
-
-        Args:
-            factor: 因子值序列
-
-        Returns:
-            标准化后的因子 Series
-        """
+        """Z-score 标准化：``(value - mean) / std``，输出均值 0、标准差 1。"""
         std = factor.std()
         if pd.isna(std) or std == 0:
             return pd.Series(0.0, index=factor.index)
         return (factor - factor.mean()) / std
+
+    def _cross_section_residual(self, y: pd.Series, x: pd.DataFrame) -> pd.Series:
+        """按截面做最小二乘回归，返回残差。"""
+        y = y.astype(float)
+        x = x.astype(float)
+        x = x.replace([np.inf, -np.inf], np.nan)
+        y = y.replace([np.inf, -np.inf], np.nan)
+
+        valid = y.notna() & x.notna().all(axis=1)
+        if valid.sum() < 3:
+            return y
+
+        yv = y.loc[valid]
+        xv = x.loc[valid]
+
+        if xv.shape[1] == 0:
+            return y
+
+        beta, *_ = np.linalg.lstsq(xv.values, yv.values, rcond=None)
+        fitted = xv.values @ beta
+        resid = yv.values - fitted
+
+        out = pd.Series(np.nan, index=y.index, dtype=float)
+        out.loc[valid] = resid
+        return out
+
+    def industry_neutralize(
+        self,
+        factor: pd.Series,
+        industry: str | pd.Series = "l1_code",
+        industry_data: pd.DataFrame | None = None,
+    ) -> pd.Series:
+        """行业中性化：按 date 截面对行业虚拟变量回归，返回残差。"""
+        if isinstance(industry, str):
+            if industry in self.data.columns:
+                industry_s = self.data[industry]
+            else:
+                industry_s = self._resolve_external_column_series(
+                    industry, industry_data
+                )
+        else:
+            industry_s = self._align_series_to_data(industry)
+        data = pd.DataFrame({"factor": factor, "industry": industry_s})
+
+        def _neutralize(group: pd.DataFrame) -> pd.Series:
+            dummies = pd.get_dummies(group["industry"], dtype=float)
+            if dummies.shape[1] <= 1:
+                return group["factor"]
+            return self._cross_section_residual(group["factor"], dummies)
+
+        return data.groupby(level="date", group_keys=False).apply(_neutralize)
+
+    def market_cap_neutralize(
+        self,
+        factor: pd.Series,
+        market_cap: str | pd.Series = "total_mv",
+        log_cap: bool = True,
+    ) -> pd.Series:
+        """市值中性化：按 date 截面对市值（可选对数）回归，返回残差。"""
+        cap_s = self._resolve_series(market_cap).astype(float)
+        if log_cap:
+            cap_s = np.log(cap_s.where(cap_s > 0))
+
+        data = pd.DataFrame({"factor": factor, "cap": cap_s})
+
+        def _neutralize(group: pd.DataFrame) -> pd.Series:
+            x = pd.DataFrame({"const": 1.0, "cap": group["cap"]}, index=group.index)
+            return self._cross_section_residual(group["factor"], x)
+
+        return data.groupby(level="date", group_keys=False).apply(_neutralize)
+
+    def industry_market_cap_neutralize(
+        self,
+        factor: pd.Series,
+        industry: str | pd.Series = "l1_code",
+        market_cap: str | pd.Series = "total_mv",
+        log_cap: bool = True,
+        industry_data: pd.DataFrame | None = None,
+    ) -> pd.Series:
+        """行业+市值中性化：按 date 截面联合回归，返回残差。"""
+        if isinstance(industry, str):
+            if industry in self.data.columns:
+                industry_s = self.data[industry]
+            else:
+                industry_s = self._resolve_external_column_series(
+                    industry, industry_data
+                )
+        else:
+            industry_s = self._align_series_to_data(industry)
+        cap_s = self._resolve_series(market_cap).astype(float)
+        if log_cap:
+            cap_s = np.log(cap_s.where(cap_s > 0))
+
+        data = pd.DataFrame({"factor": factor, "industry": industry_s, "cap": cap_s})
+
+        def _neutralize(group: pd.DataFrame) -> pd.Series:
+            dummies = pd.get_dummies(group["industry"], dtype=float)
+            x = dummies.copy()
+            x["cap"] = group["cap"]
+            x["const"] = 1.0
+            return self._cross_section_residual(group["factor"], x)
+
+        return data.groupby(level="date", group_keys=False).apply(_neutralize)
 
     def _prepare_factor_values(
         self,
         winsorize: str | None = None,
         winsorize_param: float = 3,
         standardize: bool = False,
+        industry_neutral: bool = False,
+        market_cap_neutral: bool = False,
+        industry_col: str = "l1_code",
+        market_cap_col: str = "total_mv",
+        market_cap_log: bool = True,
+        industry_data: pd.DataFrame | None = None,
     ) -> pd.Series:
         """对原始因子值做去极值和标准化处理。"""
         self.logger.info(
-            "开始计算因子值: name=%s, winsorize=%s, winsorize_param=%s, standardize=%s",
+            "开始计算因子值: name=%s, winsorize=%s, winsorize_param=%s, "
+            "standardize=%s, industry_neutral=%s, market_cap_neutral=%s",
             self.name,
             winsorize,
             winsorize_param,
             standardize,
+            industry_neutral,
+            market_cap_neutral,
         )
         try:
-            factor = self.caculate()
+            factor = self.calculate()
             self.logger.info("原始因子统计: %s", self._series_stats(factor))
 
             if winsorize == "3sigma":
@@ -554,6 +735,39 @@ class Factor(ABC):
                     lambda x: self.winsorize_mad(x, winsorize_param)
                 )
 
+            if industry_neutral and market_cap_neutral:
+                self.logger.info(
+                    "执行行业+市值中性化: industry_col=%s, market_cap_col=%s, market_cap_log=%s",
+                    industry_col,
+                    market_cap_col,
+                    market_cap_log,
+                )
+                factor = self.industry_market_cap_neutralize(
+                    factor,
+                    industry=industry_col,
+                    market_cap=market_cap_col,
+                    log_cap=market_cap_log,
+                    industry_data=industry_data,
+                )
+            elif industry_neutral:
+                self.logger.info("执行行业中性化: industry_col=%s", industry_col)
+                factor = self.industry_neutralize(
+                    factor,
+                    industry=industry_col,
+                    industry_data=industry_data,
+                )
+            elif market_cap_neutral:
+                self.logger.info(
+                    "执行市值中性化: market_cap_col=%s, market_cap_log=%s",
+                    market_cap_col,
+                    market_cap_log,
+                )
+                factor = self.market_cap_neutralize(
+                    factor,
+                    market_cap=market_cap_col,
+                    log_cap=market_cap_log,
+                )
+
             if standardize:
                 self.logger.info("执行标准化: zscore")
                 factor = factor.groupby(level="date").transform(self.standardize_zscore)
@@ -564,6 +778,21 @@ class Factor(ABC):
             self.logger.exception("因子值计算失败: %s", self.name)
             raise
 
+    def _forward_price(self, adjust: bool) -> pd.Series:
+        """构造用于计算远期收益的价格序列。
+
+        Args:
+            adjust: ``True`` 表示用 ``close * adj_factor`` 复权；``False`` 用原始 close。
+        """
+        if not adjust:
+            return self.data["close"]
+        if "adj_factor" not in self.data.columns:
+            raise KeyError(
+                "adjust=True 需要 self.data 包含 adj_factor 列；"
+                "如已在外部预先复权，请显式传 adjust=False"
+            )
+        return self.data["close"] * self.data["adj_factor"]
+
     def get_clean_factor_and_forward_returns(
         self,
         quantiles: int = 5,
@@ -571,52 +800,64 @@ class Factor(ABC):
         winsorize: str | None = None,
         winsorize_param: float = 3,
         standardize: bool = False,
+        industry_neutral: bool = False,
+        market_cap_neutral: bool = False,
+        industry_col: str = "l1_code",
+        market_cap_col: str = "total_mv",
+        market_cap_log: bool = True,
+        industry_data: pd.DataFrame | None = None,
+        adjust: bool = True,
     ) -> pd.DataFrame:
-        """清洗因子数据并计算多周期远期收益，生成因子分析标准数据集。
+        """清洗因子数据并计算远期收益，生成因子分析标准数据集。
 
         Args:
-            quantiles: 因子每日截面分组数（按因子值分组，如分5组）
-            period: 远期收益计算周期（天数）
-            winsorize: 去极值方法，"3sigma" 或 "mad"，None则不做去极值
-            winsorize_param: 去极值参数，3sigma为标准差倍数(默认3)，mad为MAD倍数(默认3)
-            standardize: 是否做Z-score标准化
+            quantiles: 因子每日截面分组数（按因子值分组，如分 5 组）。
+            period: 远期收益计算周期（天数）。
+            winsorize: 去极值方法，``"3sigma"`` 或 ``"mad"``，``None`` 跳过。
+            winsorize_param: 去极值参数。
+            standardize: 是否做 Z-score 标准化。
+            industry_neutral: 是否行业中性化。
+            market_cap_neutral: 是否市值中性化。
+            industry_col: 行业字段名。
+            market_cap_col: 市值字段名。
+            market_cap_log: 市值中性化是否使用对数市值。
+            industry_data: 外部行业数据（当 ``industry_col`` 不在 ``self.data`` 时使用）。
+            adjust: 远期收益是否使用复权价（``close * adj_factor``）。
+                ``True``（默认）需要 ``self.data`` 含 ``adj_factor`` 列；
+                ``False`` 直接使用原始 ``close``——适合数据已在外部预先复权的情况。
 
         Returns:
-            干净的长格式 DataFrame，列包含：
-            date, symbol, factor, next_ret, factor_quantile
+            干净的长格式 DataFrame，列含：``date, symbol, factor, next_ret, factor_quantile``。
         """
-        # 1. 获取并预处理因子值
-        factor = self._prepare_factor_values(winsorize, winsorize_param, standardize)
+        factor = self._prepare_factor_values(
+            winsorize=winsorize,
+            winsorize_param=winsorize_param,
+            standardize=standardize,
+            industry_neutral=industry_neutral,
+            market_cap_neutral=market_cap_neutral,
+            industry_col=industry_col,
+            market_cap_col=market_cap_col,
+            market_cap_log=market_cap_log,
+            industry_data=industry_data,
+        )
 
-        # 4. 获取价格数据用于计算远期收益
-        price = self.data["close"]
+        price = self._forward_price(adjust)
 
-        # 5. 构建结果DataFrame（对齐索引）
         result = pd.DataFrame({"factor": factor, "close": price})
 
-        # 6. 计算远期收益
         ret = result["close"].groupby(level="symbol").pct_change(period)
         result["next_ret"] = ret.groupby(level="symbol").shift(-period)
 
-        # 7. 清洗：去除NaN
         result = result.dropna()
 
-        # 8. 计算因子分位数（每日截面）
         result["factor_quantile"] = result.groupby(level="date")["factor"].transform(
             lambda x: pd.qcut(x, q=quantiles, labels=False, duplicates="drop") + 1
         )
 
         return result
 
-    def caculate_daily_ic(self, result: pd.DataFrame) -> pd.Series:
-        """计算每日 IC（Rank IC，Spearman 相关系数）。
-
-        Args:
-            result: get_clean_factor_and_forward_returns 返回的 DataFrame
-
-        Returns:
-            每日 IC Series，索引为 date
-        """
+    def calculate_daily_ic(self, result: pd.DataFrame) -> pd.Series:
+        """计算每日 IC（Rank IC，Spearman 相关系数）。"""
 
         def _safe_spearman(x: pd.DataFrame) -> float:
             fac = x["factor"]
@@ -631,14 +872,7 @@ class Factor(ABC):
         return daily_ic
 
     def ic_statistics_analysis(self, daily_ic: pd.Series) -> pd.Series:
-        """计算 IC 统计指标：IC均值、标准差、信息比率（IR）。
-
-        Args:
-            daily_ic: 每日 IC 序列
-
-        Returns:
-            包含 IC均值、IC标准差、IC信息比率的 Series
-        """
+        """计算 IC 统计指标：IC 均值、标准差、信息比率（IR）。"""
         ic_analysis = pd.Series(
             {
                 "IC均值": round(daily_ic.mean(), 4),
@@ -658,21 +892,11 @@ class Factor(ABC):
         return ic_analysis
 
     def ic_mean_t_test(self, daily_ic: pd.Series) -> pd.Series:
-        """对每日 IC 序列进行单样本 T 检验，检验 IC 均值是否显著不为零。
-
-        Args:
-            daily_ic: 每日 IC 序列
-
-        Returns:
-            包含 T统计量、P值、显著性判断的 Series
-        """
-        # 剔除空值
+        """对每日 IC 序列进行单样本 T 检验，检验 IC 均值是否显著不为零。"""
         ic = daily_ic.dropna()
         if len(ic) < 2:
             return pd.Series({"T统计量": np.nan, "P值": np.nan, "显著性": "样本不足"})
-        # 单样本T检验（对比值=0）
         t_stat, p_value = stats.ttest_1samp(ic, popmean=0)
-        # 显著性判断
         significant = "显著（p<0.05）" if p_value < 0.05 else "不显著（p≥0.05）"
 
         result = pd.Series(
@@ -685,14 +909,7 @@ class Factor(ABC):
         return result
 
     def plot_ic_time_series(self, daily_ic: pd.Series) -> Line:
-        """绘制因子每日 IC 时序图。
-
-        Args:
-            daily_ic: 每日 IC 序列
-
-        Returns:
-            Pyecharts Line 图表对象
-        """
+        """绘制因子每日 IC 时序图。"""
         x_data = daily_ic.index.strftime("%Y-%m-%d").tolist()
         y_data = daily_ic.round(4).tolist()
 
@@ -703,8 +920,8 @@ class Factor(ABC):
             series_name="每日IC值",
             y_axis=y_data,
             is_smooth=False,
-            symbol=None,  # 关闭数据圆点
-            label_opts=opts.LabelOpts(is_show=False),  # 关闭数值显示
+            symbol=None,
+            label_opts=opts.LabelOpts(is_show=False),
             linestyle_opts=opts.LineStyleOpts(width=2, color="#2E86AB"),
         )
 
@@ -728,16 +945,9 @@ class Factor(ABC):
         return line
 
     def plot_ic_cumulative(self, daily_ic: pd.Series) -> Line:
-        """绘制 IC 累加曲线，观察因子持续有效性。
-
-        Args:
-            daily_ic: 每日 IC 序列
-
-        Returns:
-            Pyecharts Line 图表对象
-        """
+        """绘制 IC 累加曲线，观察因子持续有效性。"""
         x_data = daily_ic.index.strftime("%Y-%m-%d").tolist()
-        y_cum_ic = daily_ic.cumsum().round(4).tolist()  # 计算累加IC
+        y_cum_ic = daily_ic.cumsum().round(4).tolist()
 
         line = Line(init_opts=opts.InitOpts(theme=ThemeType.WESTEROS))
         line.add_xaxis(xaxis_data=x_data)
@@ -762,14 +972,7 @@ class Factor(ABC):
         return line
 
     def calculate_daily_group_ret(self, result: pd.DataFrame) -> pd.DataFrame:
-        """按日期和因子分组计算每日等权平均收益。
-
-        Args:
-            result: get_clean_factor_and_forward_returns 返回的 DataFrame
-
-        Returns:
-            日期为行索引、分组为列的每日收益 DataFrame
-        """
+        """按日期和因子分组计算每日等权平均收益。"""
         group_daily = (
             result.groupby(["date", "factor_quantile"])["next_ret"].mean().reset_index()
         )
@@ -780,16 +983,7 @@ class Factor(ABC):
         return group_ret
 
     def calculate_group_turnover(self, result: pd.DataFrame) -> pd.DataFrame:
-        """计算各因子分组的日度持仓换手率。
-
-        换手率定义为：1 - 前后两日持仓重合比例。
-
-        Args:
-            result: get_clean_factor_and_forward_returns 返回的 DataFrame
-
-        Returns:
-            日期为行索引、分组为列的换手率 DataFrame
-        """
+        """计算各因子分组的日度持仓换手率（``1 - 前后两日持仓重合比例``）。"""
         members = (
             result.reset_index()[["date", "symbol", "factor_quantile"]]
             .dropna(subset=["factor_quantile"])
@@ -835,14 +1029,7 @@ class Factor(ABC):
         ).round(4)
 
     def calculate_factor_turnover_rate(self, factor: pd.Series) -> pd.Series:
-        """计算因子整体换手率（1 - 截面秩自相关）。
-
-        Args:
-            factor: 预处理后的因子值，索引为 (date, symbol)
-
-        Returns:
-            因子换手率序列，索引为 date
-        """
+        """计算因子整体换手率（``1 - 截面秩自相关``）。"""
         factor_wide = factor.unstack("symbol").sort_index()
         factor_rank = factor_wide.rank(axis=1, pct=True)
 
@@ -905,13 +1092,8 @@ class Factor(ABC):
     ) -> tuple[pd.DataFrame, pd.Series, pd.Series, pd.Series]:
         """按换手率扣除交易成本后，计算分组与多空净收益。
 
-        Args:
-            group_ret: 每日分组收益
-            group_turnover: 每日分组换手率
-            cost_bps: 单边交易成本（bps）
-
         Returns:
-            (分组净收益, 多空毛收益, 多空净收益, 多空净绩效)
+            ``(分组净收益, 多空毛收益, 多空净收益, 多空净绩效)``
         """
         cost_rate = cost_bps / 10000
         aligned_turnover, aligned_ret = group_turnover.align(
@@ -940,20 +1122,12 @@ class Factor(ABC):
         return group_net_ret, long_short_gross, long_short_net, long_short_net_perf
 
     def performance_analysis(self, ret_series: pd.Series, period: int = 1) -> pd.Series:
-        """计算单组收益的核心量化指标。
-
-        Args:
-            ret_series: 日收益序列
-            period: 收益对应的持有周期（天）
-
-        Returns:
-            包含年化收益、年化波动率、夏普比率、总累计收益的 Series
-        """
+        """计算单组收益的核心量化指标。"""
         annual_factor = 252 / max(period, 1)
         ann_ret = ret_series.mean() * annual_factor
         ann_vol = ret_series.std() * np.sqrt(annual_factor)
-        sharpe = ann_ret / ann_vol if ann_vol != 0 else 0  # 夏普比率
-        cum_ret = (1 + ret_series).prod() - 1  # 总累计收益
+        sharpe = ann_ret / ann_vol if ann_vol != 0 else 0
+        cum_ret = (1 + ret_series).prod() - 1
         return pd.Series(
             {
                 "年化收益": round(ann_ret, 4),
@@ -966,29 +1140,13 @@ class Factor(ABC):
     def calculate_all_group_performance(
         self, group_ret: pd.DataFrame, period: int = 1
     ) -> pd.DataFrame:
-        """计算所有因子分组的绩效指标汇总表。
-
-        Args:
-            group_ret: calculate_daily_group_ret 返回的每日分组收益表
-            period: 收益对应的持有周期（天）
-
-        Returns:
-            分组绩效汇总 DataFrame
-        """
+        """计算所有因子分组的绩效指标汇总表。"""
         return group_ret.apply(lambda x: self.performance_analysis(x, period)).T
 
     def calculate_long_short(
         self, group_ret: pd.DataFrame, period: int = 1
     ) -> tuple[pd.Series, pd.Series]:
-        """计算多空组合收益（最高因子组 - 最低因子组）。
-
-        Args:
-            group_ret: calculate_daily_group_ret 返回的每日分组收益表
-            period: 收益对应的持有周期（天）
-
-        Returns:
-            (多空日收益 Series, 多空绩效指标 Series)
-        """
+        """计算多空组合收益（最高因子组 - 最低因子组）。"""
         ordered_cols = sorted(
             group_ret.columns, key=lambda x: float(str(x).replace("组", ""))
         )
@@ -1001,14 +1159,7 @@ class Factor(ABC):
         return long_short_ret, long_short_perf
 
     def plot_group_annual_bar(self, group_perf_df: pd.DataFrame) -> Bar:
-        """绘制因子分组年化收益对比柱状图。
-
-        Args:
-            group_perf_df: calculate_all_group_performance 返回的分组绩效表
-
-        Returns:
-            Pyecharts Bar 图表对象
-        """
+        """绘制因子分组年化收益对比柱状图。"""
         bar = Bar(init_opts=opts.InitOpts(theme=ThemeType.WESTEROS))
         bar.add_xaxis(group_perf_df.index.tolist())
         bar.add_yaxis(
@@ -1024,14 +1175,7 @@ class Factor(ABC):
         return bar
 
     def plot_ic_histogram(self, daily_ic: pd.Series) -> Bar:
-        """绘制 IC 分布直方图。
-
-        Args:
-            daily_ic: 每日 IC 序列
-
-        Returns:
-            Pyecharts Bar 图表对象
-        """
+        """绘制 IC 分布直方图。"""
         bar = Bar(init_opts=opts.InitOpts(theme=ThemeType.WESTEROS))
         clean_ic = daily_ic.dropna()
         if clean_ic.empty:
@@ -1055,15 +1199,7 @@ class Factor(ABC):
     def plot_group_cumulative_return(
         self, group_ret: pd.DataFrame, long_short_ret: pd.Series
     ) -> Line:
-        """绘制因子分组累计收益曲线及多空组合净值曲线。
-
-        Args:
-            group_ret: calculate_daily_group_ret 返回的每日分组收益表
-            long_short_ret: calculate_long_short 返回的多空日收益序列
-
-        Returns:
-            Pyecharts Line 图表对象
-        """
+        """绘制因子分组累计收益曲线及多空组合净值曲线。"""
         x_data = group_ret.index.strftime("%Y-%m-%d").tolist()
         group_ret = (1 + group_ret).cumprod().round(4)
         ls_cum = (1 + long_short_ret).cumprod().round(4).tolist()
@@ -1094,11 +1230,11 @@ class Factor(ABC):
 
         line.set_global_opts(
             title_opts=opts.TitleOpts(title="因子分组累计收益曲线"),
-            tooltip_opts=opts.TooltipOpts(trigger="axis"),  # 鼠标悬浮显示数据
+            tooltip_opts=opts.TooltipOpts(trigger="axis"),
             legend_opts=opts.LegendOpts(pos_left="center", pos_top="7%"),
             datazoom_opts=[
-                opts.DataZoomOpts(type_="slider"),  # 底部滑动缩放
-                opts.DataZoomOpts(type_="inside"),  # 鼠标滚轮缩放
+                opts.DataZoomOpts(type_="slider"),
+                opts.DataZoomOpts(type_="inside"),
             ],
         )
 
@@ -1257,29 +1393,63 @@ class Factor(ABC):
         winsorize_param: float = 3,
         standardize: bool = False,
         transaction_cost_bps: float = 10,
-    ) -> None:
+        industry_neutral: bool = False,
+        market_cap_neutral: bool = False,
+        industry_col: str = "l1_code",
+        market_cap_col: str = "total_mv",
+        market_cap_log: bool = True,
+        industry_data: pd.DataFrame | None = None,
+        adjust: bool = True,
+        output_dir: str | Path = "./output",
+    ) -> Path:
         """生成完整的因子分析报告，包含 IC 时序、分组收益、多空组合等图表。
 
         Args:
-            quantiles: 因子每日截面分组数（默认5）
-            period: 远期收益计算周期天数（默认1）
-            winsorize: 去极值方法，"3sigma" 或 "mad"，None 跳过
-            winsorize_param: 去极值参数（默认3）
-            standardize: 是否做 Z-score 标准化（默认 False）
-            transaction_cost_bps: 单边交易成本（bps，默认10）
+            quantiles: 因子每日截面分组数。
+            period: 远期收益计算周期天数。
+            winsorize: 去极值方法。
+            winsorize_param: 去极值参数。
+            standardize: 是否做 Z-score 标准化。
+            transaction_cost_bps: 单边交易成本（bps）。
+            industry_neutral: 是否行业中性化。
+            market_cap_neutral: 是否市值中性化。
+            industry_col: 行业字段名。
+            market_cap_col: 市值字段名。
+            market_cap_log: 市值中性化是否使用对数市值。
+            industry_data: 外部行业数据。
+            adjust: 远期收益是否使用复权价（``close * adj_factor``）。
+            output_dir: HTML 报告输出目录，自动创建。
+
+        Returns:
+            报告 HTML 路径。
         """
         self.logger.info(
-            "开始生成因子报告: name=%s, quantiles=%s, period=%s, winsorize=%s, standardize=%s, cost_bps=%s",
+            "开始生成因子报告: name=%s, quantiles=%s, period=%s, winsorize=%s, "
+            "standardize=%s, cost_bps=%s, industry_neutral=%s, market_cap_neutral=%s, adjust=%s",
             self.name,
             quantiles,
             period,
             winsorize,
             standardize,
             transaction_cost_bps,
+            industry_neutral,
+            market_cap_neutral,
+            adjust,
         )
         try:
             result = self.get_clean_factor_and_forward_returns(
-                quantiles, period, winsorize, winsorize_param, standardize
+                quantiles=quantiles,
+                period=period,
+                winsorize=winsorize,
+                winsorize_param=winsorize_param,
+                standardize=standardize,
+                industry_neutral=industry_neutral,
+                market_cap_neutral=market_cap_neutral,
+                industry_col=industry_col,
+                market_cap_col=market_cap_col,
+                market_cap_log=market_cap_log,
+                industry_data=industry_data,
+                adjust=adjust,
             )
             self.logger.info("clean因子数据: %s", self._df_stats(result))
 
@@ -1288,7 +1458,7 @@ class Factor(ABC):
 
             group_perf = self.calculate_all_group_performance(daily_group_ret, period)
             ls_ret, ls_perf = self.calculate_long_short(daily_group_ret, period)
-            daily_ic = self.caculate_daily_ic(result)
+            daily_ic = self.calculate_daily_ic(result)
             self.logger.info("IC序列: %s", self._series_stats(daily_ic))
 
             ic_stats = self.ic_statistics_analysis(daily_ic)
@@ -1301,6 +1471,12 @@ class Factor(ABC):
                 winsorize=winsorize,
                 winsorize_param=winsorize_param,
                 standardize=standardize,
+                industry_neutral=industry_neutral,
+                market_cap_neutral=market_cap_neutral,
+                industry_col=industry_col,
+                market_cap_col=market_cap_col,
+                market_cap_log=market_cap_log,
+                industry_data=industry_data,
             ).dropna()
             self.logger.info(
                 "用于换手率的因子值: %s", self._series_stats(factor_values)
@@ -1335,41 +1511,56 @@ class Factor(ABC):
                     ls_gross_ret, ls_net_ret, cost_bps=transaction_cost_bps
                 )
             )
-            page.render("./output/因子分析报告.html")
-            self.logger.info("报告已写入: ./output/因子分析报告.html")
+            output_dir = Path(output_dir)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            report_path = output_dir / f"{self.name}因子分析报告.html"
+            page.render(str(report_path))
+            self.logger.info("报告已写入: %s", report_path)
 
-            print("\n分组绩效指标\n", group_perf)
-            print("\n多空组合指标\n", ls_perf)
-            print("\nIC统计指标\n", ic_stats)
-            print("\nIC T检验\n", ic_t)
-            print("\n分组换手率统计\n", group_turnover_stats)
-            print("\n因子换手率统计\n", factor_turnover_summary)
-            print("\n换手率与收益相关系数\n", turnover_ret_corr)
-            print(f"\n分组净绩效指标(扣{transaction_cost_bps}bps)\n", group_net_perf)
-            print(f"\n多空净绩效指标(扣{transaction_cost_bps}bps)\n", ls_net_perf)
+            self.logger.info("\n分组绩效指标\n%s", group_perf)
+            self.logger.info("\n多空组合指标\n%s", ls_perf)
+            self.logger.info("\nIC统计指标\n%s", ic_stats)
+            self.logger.info("\nIC T检验\n%s", ic_t)
+            self.logger.info("\n分组换手率统计\n%s", group_turnover_stats)
+            self.logger.info("\n因子换手率统计\n%s", factor_turnover_summary)
+            self.logger.info("\n换手率与收益相关系数\n%s", turnover_ret_corr)
+            self.logger.info(
+                "\n分组净绩效指标(扣%sbps)\n%s", transaction_cost_bps, group_net_perf
+            )
+            self.logger.info(
+                "\n多空净绩效指标(扣%sbps)\n%s", transaction_cost_bps, ls_net_perf
+            )
             self.logger.info("因子报告生成完成: %s", self.name)
+            return report_path
         except Exception:
             self.logger.exception("因子报告生成失败: %s", self.name)
             raise
 
 
 if __name__ == "__main__":
+    from qlfactor.config import load_config, setup_logging
+
+    setup_logging()
+    cfg = load_config()
 
     class my_factor(Factor):
-        def caculate(self):
+        def calculate(self):
             MA, CLOSE = self.BIND("MA", "CLOSE")
             return MA(CLOSE, 20) / CLOSE - 1
 
-    from config import db_path
+    from datetime import datetime
 
-    data = pd.read_parquet(db_path + "stocks_daily.parquet")
-    data = data[data["date"].between(datetime(2023, 1, 1), datetime(2025, 12, 31))]
+    data = pd.read_parquet(cfg.db_path / "stocks_daily.parquet")
+    industry_data = pd.read_parquet(cfg.db_path / "industry.parquet")
+    data = data[data["date"].between(datetime(2020, 1, 1), datetime(2020, 12, 31))]
     data = data.set_index(["date", "symbol"]).sort_index()
-    data["close"] = data["close"] * data["adj_factor"]
     ma_factor = my_factor("my_factor", data)
-    transaction_cost_bps = 5
     ma_factor.create_factor_analysis_report(
         winsorize="3sigma",
         standardize=True,
-        transaction_cost_bps=transaction_cost_bps,
+        transaction_cost_bps=5,
+        industry_neutral=True,
+        market_cap_neutral=True,
+        industry_col="l1_code",
+        industry_data=industry_data,
     )

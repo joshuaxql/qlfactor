@@ -7,14 +7,15 @@ import pandas as pd
 from pandas.testing import assert_series_equal
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 
-from src.factor_engine import Factor
+from qlfactor.factor_engine import Factor
 
 
 class DummyFactor(Factor):
-    def caculate(self) -> pd.Series:
+    def calculate(self) -> pd.Series:
         return self.CLOSE
 
 
