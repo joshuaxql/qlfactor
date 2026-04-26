@@ -144,7 +144,7 @@
 
 - 形参 `x / a / b` 既可传字段别名字符串（自动取 `self.data[小写]`），也可传
   任意 `pd.Series`（与 `self.data.index` 对齐）。`MAX/MIN/IF/COUNT/EVERY/EXIST/CROSS`
-  还支持标量。
+  与 `CORRELATION/COVARIANCE/SIGN` 还支持标量。
 - `n / m` 必须是 `int`；返回值始终是 MultiIndex `(date, symbol)` 的 Series
   （`EVERY/EXIST/CROSS` 返回布尔 Series）。
 - 时序滚动一律按 `symbol` 分组；截面操作（`RANK`）按 `date` 分组。
@@ -235,6 +235,30 @@
   self.FORMULA("SUM(VOLUME, 5)")            # 5 日累计成交量
   ```
 
+##### CORRELATION(x, y, n, min_periods=None)
+
+按 `symbol` 的滚动相关系数，等价于 `rolling(...).corr(...)`。
+
+- 参数：
+  - `x / y`：字段别名、Series 或标量（会先对齐到 `self.data.index`）。
+  - `n`：窗口长度。
+  - `min_periods`：默认 `n`。
+- 返回：与输入索引对齐的相关系数 Series。
+- 示例：
+  ```python
+  self.FORMULA("CORRELATION(CLOSE, VOLUME, 20)")  # 价量相关
+  ```
+
+##### COVARIANCE(x, y, n, min_periods=None)
+
+按 `symbol` 的滚动协方差，等价于 `rolling(...).cov(...)`。
+
+- 参数与 `CORRELATION` 一致。
+- 示例：
+  ```python
+  self.FORMULA("COVARIANCE(PCT_CHG, VOLUME, 20)")  # 收益与成交量协方差
+  ```
+
 #### 通达信风格函数
 
 ##### ABS(x)
@@ -242,6 +266,12 @@
 逐元素绝对值。
 
 - 示例：`self.FORMULA("ABS(DELTA(CLOSE, 1))")`
+
+##### SIGN(x)
+
+逐元素符号函数，返回 `-1 / 0 / 1`（NaN 保持 NaN）。
+
+- 示例：`self.FORMULA("SIGN(DELTA(CLOSE, 1))")`
 
 ##### MAX(a, b)
 
@@ -318,6 +348,16 @@
   self.FORMULA("TSRANK(CLOSE, 60)")  # 当前价在过去 60 日中的相对位置
   ```
 
+##### TS_ARGMAX(x, n, min_periods=None)
+
+**时序最大值位置**：当前滚动窗口内最大值所在的 **1-based** 位置（`1=最早`，`n=最新`）。
+
+- 若窗口内最大值出现多次，取最早出现的位置（与 `numpy.nanargmax` 一致）。
+- 示例：
+  ```python
+  self.FORMULA("TS_ARGMAX(CLOSE, 20)")  # 20 日最高价距窗口起点的位置
+  ```
+
 ##### SMA(x, n, m=1, min_periods=1)
 
 **通达信 SMA**：递归权重平均 `Y = (m*X + (n-m)*Y_prev) / n`，等价于
@@ -359,12 +399,13 @@
 | --------------------------- | ---------- | ------------------------------------- |
 | `MA` / `EMA` / `SMA`        | 时序均值   | 简单 / 指数 / 通达信 SMA（指数加权）  |
 | `STD` / `SUM`               | 时序聚合   | 滚动标准差 / 求和                     |
+| `CORRELATION` / `COVARIANCE` | 双序列聚合 | 两序列滚动相关 / 协方差              |
 | `REF` / `DELTA`             | 时序错位   | 滞后 / 差分                           |
 | `HHV` / `LLV`               | 时序极值   | n 期最高 / 最低                       |
-| `TSRANK`                    | 时序排名   | 当前值在最近 n 期内的位置             |
+| `TSRANK` / `TS_ARGMAX`      | 时序排名   | 当前值排名 / 窗口最大值位置           |
 | `RANK`                      | 截面排名   | 当日全市场分位                        |
 | `MAX` / `MIN`               | 逐元素极值 | **不是**窗口极值（区别于 `HHV/LLV`）  |
-| `ABS` / `IF`                | 逐元素     | 绝对值 / 三元                         |
+| `ABS` / `SIGN` / `IF`       | 逐元素     | 绝对值 / 符号 / 三元                  |
 | `COUNT` / `EVERY` / `EXIST` | 条件聚合   | n 期内 True 的 次数 / 全是 / 至少一次 |
 | `CROSS`                     | 信号       | 上穿（同 `a>b` 且上期 `a<=b`）        |
 | `LOG` / `EXP` / `SQRT`      | 数学       | numpy 同名函数，逐元素                |
@@ -377,6 +418,8 @@
   权重 `m/n`。
 - `RANK(x)` vs `TSRANK(x, n)`：截面 vs 时序，前者比的是同日不同股票，后者比的是
   同股票不同日。
+- `TSRANK(x, n)` vs `TS_ARGMAX(x, n)`：前者给出当前值在窗口内的相对排名，后者给出
+  窗口最大值出现的位置（1-based）。
 - `LOG/SQRT` 对非正数会产生 `-inf/nan`，进入回归会让该截面被剔除——必要时先
   `x.where(x > 0)`。
 

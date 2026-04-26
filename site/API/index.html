@@ -652,6 +652,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#correlationx-y-n-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CORRELATION(x, y, n, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#covariancex-y-n-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COVARIANCE(x, y, n, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -674,6 +696,17 @@
     <span class="md-ellipsis">
       
         ABS(x)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#signx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SIGN(x)
       
     </span>
   </a>
@@ -773,6 +806,17 @@
     <span class="md-ellipsis">
       
         TSRANK(x, n, pct=True, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ts_argmaxx-n-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TS_ARGMAX(x, n, min_periods=None)
       
     </span>
   </a>
@@ -1768,6 +1812,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#correlationx-y-n-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CORRELATION(x, y, n, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#covariancex-y-n-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COVARIANCE(x, y, n, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1790,6 +1856,17 @@
     <span class="md-ellipsis">
       
         ABS(x)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#signx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SIGN(x)
       
     </span>
   </a>
@@ -1889,6 +1966,17 @@
     <span class="md-ellipsis">
       
         TSRANK(x, n, pct=True, min_periods=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ts_argmaxx-n-min_periodsnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TS_ARGMAX(x, n, min_periods=None)
       
     </span>
   </a>
@@ -2666,7 +2754,7 @@
 <ul>
 <li>形参 <code>x / a / b</code> 既可传字段别名字符串（自动取 <code>self.data[小写]</code>），也可传
   任意 <code>pd.Series</code>（与 <code>self.data.index</code> 对齐）。<code>MAX/MIN/IF/COUNT/EVERY/EXIST/CROSS</code>
-  还支持标量。</li>
+  与 <code>CORRELATION/COVARIANCE/SIGN</code> 还支持标量。</li>
 <li><code>n / m</code> 必须是 <code>int</code>；返回值始终是 MultiIndex <code>(date, symbol)</code> 的 Series
   （<code>EVERY/EXIST/CROSS</code> 返回布尔 Series）。</li>
 <li>时序滚动一律按 <code>symbol</code> 分组；截面操作（<code>RANK</code>）按 <code>date</code> 分组。</li>
@@ -2742,11 +2830,36 @@
   <code>python
   self.FORMULA("SUM(VOLUME, 5)")            # 5 日累计成交量</code></li>
 </ul>
+<h5 id="correlationx-y-n-min_periodsnone">CORRELATION(x, y, n, min_periods=None)</h5>
+<p>按 <code>symbol</code> 的滚动相关系数，等价于 <code>rolling(...).corr(...)</code>。</p>
+<ul>
+<li>参数：</li>
+<li><code>x / y</code>：字段别名、Series 或标量（会先对齐到 <code>self.data.index</code>）。</li>
+<li><code>n</code>：窗口长度。</li>
+<li><code>min_periods</code>：默认 <code>n</code>。</li>
+<li>返回：与输入索引对齐的相关系数 Series。</li>
+<li>示例：
+  <code>python
+  self.FORMULA("CORRELATION(CLOSE, VOLUME, 20)")  # 价量相关</code></li>
+</ul>
+<h5 id="covariancex-y-n-min_periodsnone">COVARIANCE(x, y, n, min_periods=None)</h5>
+<p>按 <code>symbol</code> 的滚动协方差，等价于 <code>rolling(...).cov(...)</code>。</p>
+<ul>
+<li>参数与 <code>CORRELATION</code> 一致。</li>
+<li>示例：
+  <code>python
+  self.FORMULA("COVARIANCE(PCT_CHG, VOLUME, 20)")  # 收益与成交量协方差</code></li>
+</ul>
 <h4 id="_2">通达信风格函数</h4>
 <h5 id="absx">ABS(x)</h5>
 <p>逐元素绝对值。</p>
 <ul>
 <li>示例：<code>self.FORMULA("ABS(DELTA(CLOSE, 1))")</code></li>
+</ul>
+<h5 id="signx">SIGN(x)</h5>
+<p>逐元素符号函数，返回 <code>-1 / 0 / 1</code>（NaN 保持 NaN）。</p>
+<ul>
+<li>示例：<code>self.FORMULA("SIGN(DELTA(CLOSE, 1))")</code></li>
 </ul>
 <h5 id="maxa-b">MAX(a, b)</h5>
 <p><strong>逐元素较大值</strong>（不是滚动窗口最大值——那是 <code>HHV</code>）。<code>a/b</code> 都经 <code>_resolve_value</code>
@@ -2805,6 +2918,14 @@
   <code>python
   self.FORMULA("TSRANK(CLOSE, 60)")  # 当前价在过去 60 日中的相对位置</code></li>
 </ul>
+<h5 id="ts_argmaxx-n-min_periodsnone">TS_ARGMAX(x, n, min_periods=None)</h5>
+<p><strong>时序最大值位置</strong>：当前滚动窗口内最大值所在的 <strong>1-based</strong> 位置（<code>1=最早</code>，<code>n=最新</code>）。</p>
+<ul>
+<li>若窗口内最大值出现多次，取最早出现的位置（与 <code>numpy.nanargmax</code> 一致）。</li>
+<li>示例：
+  <code>python
+  self.FORMULA("TS_ARGMAX(CLOSE, 20)")  # 20 日最高价距窗口起点的位置</code></li>
+</ul>
 <h5 id="smax-n-m1-min_periods1">SMA(x, n, m=1, min_periods=1)</h5>
 <p><strong>通达信 SMA</strong>：递归权重平均 <code>Y = (m*X + (n-m)*Y_prev) / n</code>，等价于
 <code>ewm(alpha=m/n, adjust=False)</code>。</p>
@@ -2854,6 +2975,11 @@
 <td>滚动标准差 / 求和</td>
 </tr>
 <tr>
+<td><code>CORRELATION</code> / <code>COVARIANCE</code></td>
+<td>双序列聚合</td>
+<td>两序列滚动相关 / 协方差</td>
+</tr>
+<tr>
 <td><code>REF</code> / <code>DELTA</code></td>
 <td>时序错位</td>
 <td>滞后 / 差分</td>
@@ -2864,9 +2990,9 @@
 <td>n 期最高 / 最低</td>
 </tr>
 <tr>
-<td><code>TSRANK</code></td>
+<td><code>TSRANK</code> / <code>TS_ARGMAX</code></td>
 <td>时序排名</td>
-<td>当前值在最近 n 期内的位置</td>
+<td>当前值排名 / 窗口最大值位置</td>
 </tr>
 <tr>
 <td><code>RANK</code></td>
@@ -2879,9 +3005,9 @@
 <td><strong>不是</strong>窗口极值（区别于 <code>HHV/LLV</code>）</td>
 </tr>
 <tr>
-<td><code>ABS</code> / <code>IF</code></td>
+<td><code>ABS</code> / <code>SIGN</code> / <code>IF</code></td>
 <td>逐元素</td>
-<td>绝对值 / 三元</td>
+<td>绝对值 / 符号 / 三元</td>
 </tr>
 <tr>
 <td><code>COUNT</code> / <code>EVERY</code> / <code>EXIST</code></td>
@@ -2908,6 +3034,8 @@
   权重 <code>m/n</code>。</li>
 <li><code>RANK(x)</code> vs <code>TSRANK(x, n)</code>：截面 vs 时序，前者比的是同日不同股票，后者比的是
   同股票不同日。</li>
+<li><code>TSRANK(x, n)</code> vs <code>TS_ARGMAX(x, n)</code>：前者给出当前值在窗口内的相对排名，后者给出
+  窗口最大值出现的位置（1-based）。</li>
 <li><code>LOG/SQRT</code> 对非正数会产生 <code>-inf/nan</code>，进入回归会让该截面被剔除——必要时先
   <code>x.where(x &gt; 0)</code>。</li>
 </ul>

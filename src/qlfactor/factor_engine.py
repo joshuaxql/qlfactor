@@ -314,9 +314,12 @@ class Factor(ABC):
             "REF": self.REF,
             "DELTA": self.DELTA,
             "STD": self.STD,
+            "CORRELATION": self.CORRELATION,
+            "COVARIANCE": self.COVARIANCE,
             "SUM": self.SUM,
             # 通达信风格
             "ABS": self.ABS,
+            "SIGN": self.SIGN,
             "MAX": self.MAX,
             "MIN": self.MIN,
             "IF": self.IF,
@@ -326,6 +329,7 @@ class Factor(ABC):
             "HHV": self.HHV,
             "LLV": self.LLV,
             "TSRANK": self.TSRANK,
+            "TS_ARGMAX": self.TS_ARGMAX,
             "SMA": self.SMA,
             "CROSS": self.CROSS,
             # 常用数值函数
@@ -441,10 +445,44 @@ class Factor(ABC):
             lambda v: v.rolling(n, min_periods=mp).sum()
         )
 
+    def CORRELATION(
+        self,
+        x: str | pd.Series | float | int,
+        y: str | pd.Series | float | int,
+        n: int,
+        min_periods: int | None = None,
+    ) -> pd.Series:
+        """滚动相关系数，按 symbol 分组计算。"""
+        sx = self._resolve_value(x)
+        sy = self._resolve_value(y)
+        mp = n if min_periods is None else min_periods
+        return sx.groupby(level="symbol").transform(
+            lambda v: v.rolling(n, min_periods=mp).corr(sy.reindex(v.index))
+        )
+
+    def COVARIANCE(
+        self,
+        x: str | pd.Series | float | int,
+        y: str | pd.Series | float | int,
+        n: int,
+        min_periods: int | None = None,
+    ) -> pd.Series:
+        """滚动协方差，按 symbol 分组计算。"""
+        sx = self._resolve_value(x)
+        sy = self._resolve_value(y)
+        mp = n if min_periods is None else min_periods
+        return sx.groupby(level="symbol").transform(
+            lambda v: v.rolling(n, min_periods=mp).cov(sy.reindex(v.index))
+        )
+
     # ==================== 通达信风格常用函数 ====================
     def ABS(self, x: str | pd.Series) -> pd.Series:
         s = self._resolve_series(x)
         return s.abs()
+
+    def SIGN(self, x: str | pd.Series | float | int | bool) -> pd.Series:
+        s = self._resolve_value(x)
+        return np.sign(s)
 
     def MAX(
         self,
@@ -557,6 +595,26 @@ class Factor(ABC):
 
         return s.groupby(level="symbol").transform(
             lambda v: v.rolling(n, min_periods=mp).apply(_rank_last, raw=False)
+        )
+
+    def TS_ARGMAX(
+        self,
+        x: str | pd.Series,
+        n: int,
+        min_periods: int | None = None,
+    ) -> pd.Series:
+        """时序最大值位置：窗口内最大值的 1-based 位置（1=最早，n=最新）。"""
+        s = self._resolve_series(x)
+        mp = n if min_periods is None else min_periods
+
+        def _argmax_pos(window: pd.Series) -> float:
+            values = window.to_numpy(dtype=float)
+            if np.isnan(values).all():
+                return np.nan
+            return float(np.nanargmax(values) + 1)
+
+        return s.groupby(level="symbol").transform(
+            lambda v: v.rolling(n, min_periods=mp).apply(_argmax_pos, raw=False)
         )
 
     def SMA(

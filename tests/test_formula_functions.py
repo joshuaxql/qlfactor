@@ -179,6 +179,48 @@ class TestFormulaFunctions(unittest.TestCase):
         )
         assert_series_equal(sum3, expected_sum3)
 
+    def test_correlation_covariance_sign_ts_argmax(self):
+        close = self.data["close"]
+        volume = self.data["volume"]
+        delta1 = close.groupby(level="symbol").diff(1)
+
+        corr3 = self.factor.CORRELATION(close, volume, 3)
+        expected_corr3 = close.groupby(level="symbol").transform(
+            lambda v: v.rolling(3, min_periods=3).corr(volume.reindex(v.index))
+        )
+        assert_series_equal(corr3, expected_corr3)
+
+        cov3 = self.factor.COVARIANCE(close, volume, 3)
+        expected_cov3 = close.groupby(level="symbol").transform(
+            lambda v: v.rolling(3, min_periods=3).cov(volume.reindex(v.index))
+        )
+        assert_series_equal(cov3, expected_cov3)
+
+        sign_delta1 = self.factor.SIGN(self.factor.DELTA(close, 1))
+        expected_sign_delta1 = np.sign(delta1)
+        assert_series_equal(sign_delta1, expected_sign_delta1)
+
+        ts_argmax3 = self.factor.TS_ARGMAX(close, 3)
+        expected_ts_argmax3 = close.groupby(level="symbol").transform(
+            lambda v: v.rolling(3, min_periods=3).apply(
+                lambda w: float(np.nanargmax(w.to_numpy(dtype=float)) + 1),
+                raw=False,
+            )
+        )
+        assert_series_equal(ts_argmax3, expected_ts_argmax3)
+
+        formula_corr3 = self.factor.FORMULA("CORRELATION(CLOSE, VOLUME, 3)")
+        assert_series_equal(formula_corr3, expected_corr3)
+
+        formula_cov3 = self.factor.FORMULA("COVARIANCE(CLOSE, VOLUME, 3)")
+        assert_series_equal(formula_cov3, expected_cov3)
+
+        formula_sign = self.factor.FORMULA("SIGN(DELTA(CLOSE, 1))")
+        assert_series_equal(formula_sign, expected_sign_delta1)
+
+        formula_ts_argmax3 = self.factor.FORMULA("TS_ARGMAX(CLOSE, 3)")
+        assert_series_equal(formula_ts_argmax3, expected_ts_argmax3)
+
     def test_tdx_style_scalar_and_logic(self):
         close = self.data["close"]
         ref1 = close.groupby(level="symbol").shift(1)
@@ -327,6 +369,11 @@ class TestFormulaFunctions(unittest.TestCase):
         tsrank3_aaa = self.factor.TSRANK(self.factor.CLOSE, 3).loc[idx[:, "AAA"]]
         np.testing.assert_allclose(
             tsrank3_aaa.to_numpy(), np.array([np.nan, np.nan, 1.0, 0.5, 1.0]), equal_nan=True
+        )
+
+        ts_argmax3_aaa = self.factor.TS_ARGMAX(self.factor.CLOSE, 3).loc[idx[:, "AAA"]]
+        np.testing.assert_allclose(
+            ts_argmax3_aaa.to_numpy(), np.array([np.nan, np.nan, 3.0, 2.0, 3.0]), equal_nan=True
         )
 
         formula_aaa = self.factor.FORMULA("MA(CLOSE, 2) - MA(CLOSE, 3)").loc[idx[:, "AAA"]]
