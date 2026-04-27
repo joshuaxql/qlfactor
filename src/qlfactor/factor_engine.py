@@ -332,6 +332,17 @@ class Factor(ABC):
             "TS_ARGMAX": self.TS_ARGMAX,
             "SMA": self.SMA,
             "CROSS": self.CROSS,
+            # Alpha 风格函数
+            "decay_linear": self.decay_linear,
+            "DECAY_LINEAR": self.decay_linear,
+            "IndClass": self.IndClass,
+            "INDCLASS": self.IndClass,
+            "IndNeutralize": self.IndNeutralize,
+            "INDNEUTRALIZE": self.IndNeutralize,
+            "scale": self.scale,
+            "SCALE": self.scale,
+            "product": self.product,
+            "PRODUCT": self.product,
             # 常用数值函数
             "LOG": np.log,
             "EXP": np.exp,
@@ -646,6 +657,98 @@ class Factor(ABC):
         prev_a = sa.groupby(level="symbol").shift(1)
         prev_b = sb.groupby(level="symbol").shift(1)
         return (sa > sb) & (prev_a <= prev_b)
+
+    # ==================== Alpha 风格函数 ====================
+    def decay_linear(
+        self,
+        x: str | pd.Series,
+        d: int,
+        min_periods: int | None = None,
+    ) -> pd.Series:
+        """线性衰减加权均值（最近观测权重更高）。"""
+        if d <= 0:
+            raise ValueError("d 必须大于 0")
+        mp = d if min_periods is None else min_periods
+        if mp <= 0:
+            raise ValueError("min_periods 必须大于 0")
+        if mp > d:
+            raise ValueError("min_periods 不能大于 d")
+
+        s = self._resolve_series(x).astype(float)
+        full_weights = np.arange(1, d + 1, dtype=float)
+
+        def _apply(v: pd.Series) -> pd.Series:
+            def _weighted(window: np.ndarray) -> float:
+                valid = ~np.isnan(window)
+                if valid.sum() == 0:
+                    return np.nan
+                weights = full_weights[-window.size :][valid]
+                return float(np.dot(window[valid], weights) / weights.sum())
+
+            return v.rolling(d, min_periods=mp).apply(_weighted, raw=True)
+
+        return s.groupby(level="symbol").transform(_apply)
+
+    def IndClass(
+        self,
+        industry: str | pd.Series = "l1_code",
+        industry_data: pd.DataFrame | None = None,
+    ) -> pd.Series:
+        """解析行业分类序列（支持 data 列或行业成分变更表）。"""
+        if isinstance(industry, str):
+            if industry in self.data.columns:
+                return self.data[industry]
+            return self._resolve_external_column_series(industry, industry_data)
+        return self._align_series_to_data(industry)
+
+    def IndNeutralize(
+        self,
+        x: str | pd.Series,
+        industry: str | pd.Series = "l1_code",
+        industry_data: pd.DataFrame | None = None,
+    ) -> pd.Series:
+        """按行业做截面回归中性化，返回残差。"""
+        factor = self._resolve_series(x)
+        industry_s = self.IndClass(industry=industry, industry_data=industry_data)
+        return self.industry_neutralize(factor=factor, industry=industry_s)
+
+    def scale(
+        self,
+        x: str | pd.Series | float | int,
+        a: float = 1.0,
+    ) -> pd.Series:
+        """按 date 截面归一化，使 ``sum(abs(x)) = abs(a)``。"""
+        s = self._resolve_value(x).astype(float)
+
+        def _scale_cs(group: pd.Series) -> pd.Series:
+            denom = group.abs().sum()
+            if pd.isna(denom) or denom == 0:
+                out = pd.Series(0.0, index=group.index)
+                out[group.isna()] = np.nan
+                return out
+            return group * (a / denom)
+
+        return s.groupby(level="date", group_keys=False).apply(_scale_cs)
+
+    def product(
+        self,
+        x: str | pd.Series,
+        n: int,
+        min_periods: int | None = None,
+    ) -> pd.Series:
+        """滚动乘积，按 symbol 分组计算。"""
+        if n <= 0:
+            raise ValueError("n 必须大于 0")
+        mp = n if min_periods is None else min_periods
+        if mp <= 0:
+            raise ValueError("min_periods 必须大于 0")
+        if mp > n:
+            raise ValueError("min_periods 不能大于 n")
+
+        s = self._resolve_series(x)
+        return s.groupby(level="symbol").transform(
+            lambda v: v.rolling(n, min_periods=mp).apply(np.prod, raw=True)
+        )
 
     @abstractmethod
     def calculate(self) -> pd.Series:

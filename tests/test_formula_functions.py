@@ -325,6 +325,66 @@ class TestFormulaFunctions(unittest.TestCase):
         expected_bind = self.factor.MA(close, 2)
         assert_series_equal(bind_result, expected_bind)
 
+    def test_alpha_style_functions(self):
+        close = self.data["close"]
+
+        decay3 = self.factor.decay_linear(close, 3)
+        expected_decay3 = close.groupby(level="symbol").transform(
+            lambda v: v.rolling(3, min_periods=3).apply(
+                lambda w: float(np.dot(w, np.array([1.0, 2.0, 3.0])) / 6.0),
+                raw=True,
+            )
+        )
+        assert_series_equal(decay3, expected_decay3)
+
+        decay3_formula = self.factor.FORMULA("decay_linear(CLOSE, 3)")
+        assert_series_equal(decay3_formula, expected_decay3)
+
+        product3 = self.factor.product(close, 3)
+        expected_product3 = close.groupby(level="symbol").transform(
+            lambda v: v.rolling(3, min_periods=3).apply(np.prod, raw=True)
+        )
+        assert_series_equal(product3, expected_product3)
+
+        product3_formula = self.factor.FORMULA("product(CLOSE, 3)")
+        assert_series_equal(product3_formula, expected_product3)
+
+        scale_close = self.factor.scale(close)
+        expected_scale = close.groupby(level="date").transform(
+            lambda v: v / v.abs().sum() if v.abs().sum() != 0 else 0.0
+        )
+        assert_series_equal(scale_close, expected_scale)
+
+        scale_formula = self.factor.FORMULA("scale(CLOSE)")
+        assert_series_equal(scale_formula, expected_scale)
+
+        dates = pd.to_datetime(["2024-02-01", "2024-02-02"])
+        symbols = ["A1", "A2", "B1", "B2"]
+        idx = pd.MultiIndex.from_product([dates, symbols], names=["date", "symbol"])
+        df = pd.DataFrame(1.0, index=idx, columns=self.data.columns)
+        df["close"] = [1.0, 3.0, 10.0, 14.0, 2.0, 4.0, 9.0, 13.0]
+        df["l1_code"] = ["A", "A", "B", "B", "A", "A", "B", "B"]
+        local_factor = DummyFactor("local", df)
+
+        ind_class = local_factor.IndClass("l1_code")
+        assert_series_equal(ind_class, df["l1_code"])
+
+        expected_neutral = (
+            df["close"]
+            - pd.DataFrame({"close": df["close"], "industry": ind_class})
+            .groupby([df.index.get_level_values("date"), "industry"])["close"]
+            .transform("mean")
+        )
+        expected_neutral.name = None
+
+        neutral = local_factor.IndNeutralize(local_factor.CLOSE, ind_class)
+        assert_series_equal(neutral, expected_neutral)
+
+        neutral_formula = local_factor.FORMULA(
+            "IndNeutralize(CLOSE, IndClass('l1_code'))"
+        )
+        assert_series_equal(neutral_formula, expected_neutral)
+
     def test_manual_known_values(self):
         idx = pd.IndexSlice
 

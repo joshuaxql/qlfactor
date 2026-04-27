@@ -84,7 +84,7 @@
 职责：
 - 定义因子计算接口。
 - 提供通用的因子清洗、收益分析、IC 分析、换手率分析、交易成本分析、图表输出和报告生成。
-- 提供公式化因子 DSL（如 `MA(CLOSE, 20)`）及通达信风格算子。
+- 提供公式化因子 DSL（如 `MA(CLOSE, 20)`）、通达信风格算子与 Alpha 风格扩展算子。
 - 在公式执行、因子预处理、报告生成阶段输出日志，便于排错。
 
 数据约定：
@@ -151,6 +151,9 @@
 - `min_periods=None` 表示与窗口长度 `n` 相等（要满窗才输出）；传整数则放宽，
   早期窗口不足时也会输出。
 - 条件类参数（`cond`）会被 `_resolve_value` 处理为布尔，`NaN` 当作 `False`。
+- `decay_linear / scale / product` 也可写成大写别名 `DECAY_LINEAR / SCALE / PRODUCT`。
+- `IndClass/IndNeutralize` 默认使用 `l1_code`；若该列不在 `self.data`，可传
+  `industry_data`（行业成分变更表）辅助映射。
 
 #### 基础时序 / 截面算子
 
@@ -199,6 +202,21 @@
   self.FORMULA("RANK(MA(CLOSE, 20))")       # 20 日均价的截面分位
   ```
 
+##### scale(x, a=1.0)
+
+**截面归一化**：按 `date` 对序列缩放，使每个交易日满足
+`sum(abs(x)) = abs(a)`（默认 `a=1.0`）。
+
+- 参数：
+  - `x`：字段别名 / Series / 标量。
+  - `a`：缩放目标（可为负，符号会整体传递到结果）。
+- 边界：
+  - 若某日 `sum(abs(x)) == 0`，该日返回 0（原本为 NaN 的位置仍保持 NaN）。
+- 示例：
+  ```python
+  self.FORMULA("scale(RANK(CLOSE) - 0.5)")  # 截面权重和为 0，abs 和为 1
+  ```
+
 ##### REF(x, n=1)
 
 滞后 n 期，等价于 `groupby(symbol).shift(n)`。前 n 期为 NaN。
@@ -235,6 +253,35 @@
   self.FORMULA("SUM(VOLUME, 5)")            # 5 日累计成交量
   ```
 
+##### decay_linear(x, d, min_periods=None)
+
+线性衰减加权均值（按 `symbol` 滚动）：窗口内权重为 `1..d`，
+越靠近当前时点权重越大。
+
+- 参数：
+  - `x`：字段别名或 Series。
+  - `d`：窗口长度（`d > 0`）。
+  - `min_periods`：默认 `d`；需满足 `0 < min_periods <= d`。
+- 缺失值处理：
+  - 窗口内 NaN 会被跳过，权重按有效值重新归一化。
+- 示例：
+  ```python
+  self.FORMULA("decay_linear(CLOSE, 10)")
+  ```
+
+##### product(x, n, min_periods=None)
+
+按 `symbol` 计算滚动乘积。
+
+- 参数：
+  - `x`：字段别名或 Series。
+  - `n`：窗口长度（`n > 0`）。
+  - `min_periods`：默认 `n`；需满足 `0 < min_periods <= n`。
+- 示例：
+  ```python
+  self.FORMULA("product(1 + PCT_CHG / 100, 5)")  # 5 日收益连乘
+  ```
+
 ##### CORRELATION(x, y, n, min_periods=None)
 
 按 `symbol` 的滚动相关系数，等价于 `rolling(...).corr(...)`。
@@ -257,6 +304,36 @@
 - 示例：
   ```python
   self.FORMULA("COVARIANCE(PCT_CHG, VOLUME, 20)")  # 收益与成交量协方差
+  ```
+
+#### Alpha 风格扩展函数
+
+##### IndClass(industry="l1_code", industry_data=None)
+
+解析行业分类序列。
+
+- 参数：
+  - `industry`：行业字段名或行业 Series。
+  - `industry_data`：可选外部行业成分变更表（`ts_code/in_date/out_date/...`）。
+- 规则：
+  - 若 `industry` 是字符串且存在于 `self.data.columns`，直接使用该列；
+  - 若不存在于 `self.data`，尝试从 `industry_data` 做时点映射。
+- 示例：
+  ```python
+  self.FORMULA("IndClass('l1_code')")
+  ```
+
+##### IndNeutralize(x, industry="l1_code", industry_data=None)
+
+行业中性化：按 `date` 截面对行业虚拟变量回归，返回残差序列。
+
+- 参数：
+  - `x`：待中性化因子序列。
+  - `industry`：行业字段名或行业 Series（可与 `IndClass(...)` 组合）。
+  - `industry_data`：当行业列不在 `self.data` 时提供外部映射数据。
+- 示例：
+  ```python
+  self.FORMULA("IndNeutralize(CLOSE, IndClass('l1_code'))")
   ```
 
 #### 通达信风格函数
@@ -399,25 +476,29 @@
 | --------------------------- | ---------- | ------------------------------------- |
 | `MA` / `EMA` / `SMA`        | 时序均值   | 简单 / 指数 / 通达信 SMA（指数加权）  |
 | `STD` / `SUM`               | 时序聚合   | 滚动标准差 / 求和                     |
+| `decay_linear` / `product`  | 时序聚合   | 线性衰减加权均值 / 滚动乘积           |
 | `CORRELATION` / `COVARIANCE` | 双序列聚合 | 两序列滚动相关 / 协方差              |
 | `REF` / `DELTA`             | 时序错位   | 滞后 / 差分                           |
 | `HHV` / `LLV`               | 时序极值   | n 期最高 / 最低                       |
 | `TSRANK` / `TS_ARGMAX`      | 时序排名   | 当前值排名 / 窗口最大值位置           |
-| `RANK`                      | 截面排名   | 当日全市场分位                        |
+| `RANK` / `scale`            | 截面排名   | 当日分位 / 截面归一化                 |
 | `MAX` / `MIN`               | 逐元素极值 | **不是**窗口极值（区别于 `HHV/LLV`）  |
 | `ABS` / `SIGN` / `IF`       | 逐元素     | 绝对值 / 符号 / 三元                  |
 | `COUNT` / `EVERY` / `EXIST` | 条件聚合   | n 期内 True 的 次数 / 全是 / 至少一次 |
 | `CROSS`                     | 信号       | 上穿（同 `a>b` 且上期 `a<=b`）        |
+| `IndClass` / `IndNeutralize` | 中性化     | 行业分类解析 / 行业中性化残差         |
 | `LOG` / `EXP` / `SQRT`      | 数学       | numpy 同名函数，逐元素                |
 
 #### 易混点提示
 
 - `MAX(a, b)` vs `HHV(x, n)`：前者是两序列的逐元素较大值，后者是单序列的窗口最大。
   写动量类因子常要的是 `HHV`。
+- `MA(x, n)` vs `decay_linear(x, d)`：前者窗口等权，后者线性加权且最近观测权重更高。
 - `MA(x, n)` vs `SMA(x, n, m)`：`MA` 是简单等权均值；`SMA` 是通达信指数加权均值，
   权重 `m/n`。
 - `RANK(x)` vs `TSRANK(x, n)`：截面 vs 时序，前者比的是同日不同股票，后者比的是
   同股票不同日。
+- `RANK(x)` vs `scale(x)`：`RANK` 改变顺序信息，`scale` 不改变相对大小，只做截面缩放。
 - `TSRANK(x, n)` vs `TS_ARGMAX(x, n)`：前者给出当前值在窗口内的相对排名，后者给出
   窗口最大值出现的位置（1-based）。
 - `LOG/SQRT` 对非正数会产生 `-inf/nan`，进入回归会让该截面被剔除——必要时先
@@ -791,7 +872,7 @@ class DemoFactor2(Factor):
     return f1 + f2
 ```
 
-### 6.6 通达信风格函数示例
+### 6.6 通达信 / Alpha 风格函数示例
 
 ```python
 # 近20日最高/最低区间位置
@@ -803,6 +884,19 @@ signal = f.CROSS(f.MA(f.CLOSE, 5), f.MA(f.CLOSE, 20))
 # 最近5天至少3天上涨
 up_days = f.COUNT(f.CLOSE > f.REF(f.CLOSE, 1), 5)
 cond = up_days >= 3
+
+# 线性衰减权重均值（最近更重要）
+mom = f.decay_linear(f.CLOSE / f.REF(f.CLOSE, 1) - 1, 10)
+
+# 截面归一化权重（sum(abs(w))=1）
+w = f.scale(f.RANK(f.CLOSE) - 0.5)
+
+# 行业中性化
+industry = f.IndClass("l1_code")
+neutral_factor = f.IndNeutralize(f.CLOSE, industry)
+
+# 5日收益连乘
+ret5 = f.product(1 + f.PCT_CHG / 100, 5) - 1
 ```
 
 ### 6.7 winsorize_3sigma / winsorize_mad / standardize_zscore
