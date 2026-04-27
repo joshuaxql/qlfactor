@@ -533,7 +533,10 @@
 - 计算分组持仓换手率。
 
 定义：
-- 换手率 = 1 - 前后两日持仓重合比例。
+- 对于相邻两日持仓集合 `prev_set` 与 `cur_set`：
+- 换手率 = `1 - |prev_set ∩ cur_set| / max(len(prev_set), len(cur_set))`
+- 首个交易日为 `NaN`（无前一日可比）。
+- 若中间某日该组为空集合，再次出现时会按与空集合比较计算（通常为 `1.0`）。
 
 ### 3.1.15 calculate_group_turnover_stats(self, group_turnover: pd.DataFrame) -> pd.DataFrame
 
@@ -550,7 +553,7 @@
 ### 3.1.16 calculate_factor_turnover_rate(self, factor: pd.Series) -> pd.Series
 
 功能：
-- 计算因子整体换手率。
+- 计算因子整体换手率（排序稳定性代理指标）。
 
 定义：
 - 因子换手率 = 1 - 截面秩自相关。
@@ -559,6 +562,7 @@
 - 先转宽表并做截面百分位秩。
 - 与前一日秩做 Spearman 相关。
 - 常量截面自动记为 NaN。
+- 该指标并非实际交易换手率：当秩相关为负时结果可能大于 1（理论上可到 2）。
 
 ### 3.1.17 factor_turnover_stats(self, factor_turnover: pd.Series) -> pd.Series
 
@@ -576,13 +580,16 @@
 返回：
 - Series，索引为组名。
 
-### 3.1.19 calculate_net_returns_with_cost(self, group_ret: pd.DataFrame, group_turnover: pd.DataFrame, cost_bps: float = 10) -> tuple[pd.DataFrame, pd.Series, pd.Series, pd.Series]
+### 3.1.19 calculate_net_returns_with_cost(self, group_ret: pd.DataFrame, group_turnover: pd.DataFrame, cost_bps: float = 10, buy_cost_bps: float | None = None, sell_cost_bps: float | None = None, round_trip_multiplier: float = 1.0) -> tuple[pd.DataFrame, pd.Series, pd.Series, pd.Series]
 
 功能：
 - 按换手率扣交易成本，输出净收益。
 
 参数：
-- cost_bps：单边成本，单位 bps。
+- cost_bps：基础单边成本，单位 bps（兼容旧参数）。
+- buy_cost_bps：买入单边成本，单位 bps；不传时回退到 `cost_bps`。
+- sell_cost_bps：卖出单边成本，单位 bps；不传时回退到 `cost_bps`。
+- round_trip_multiplier：双边成本倍率，默认 `1.0`。
 
 返回：
 1. 分组净收益 DataFrame
@@ -591,9 +598,10 @@
 4. 多空净绩效 Series
 
 公式：
-- 成本率 = cost_bps / 10000
-- 分组净收益 = 分组毛收益 - 分组换手率 × 成本率
-- 多空净收益 = 多空毛收益 - (高组换手率 + 低组换手率) × 成本率
+- 默认双边成本率 = `2 * cost_bps / 10000`
+- 细粒度双边成本率 = `((buy_cost_bps + sell_cost_bps) / 10000) * round_trip_multiplier`
+- 分组净收益 = 分组毛收益 - 分组换手率 × 双边成本率
+- 多空净收益 = 多空毛收益 - (高组换手率 + 低组换手率) × 双边成本率
 
 ### 3.1.20 performance_analysis(self, ret_series: pd.Series, period: int = 1) -> pd.Series
 
@@ -655,8 +663,9 @@
 
 功能：
 - 多空毛收益累计、净收益累计、累计成本拖累三条曲线对比。
+- `cost_bps` 用于图例展示，建议传双边等效成本（bps）。
 
-### 3.1.31 create_factor_analysis_report(self, quantiles=5, period=1, winsorize=None, winsorize_param=3, standardize=False, transaction_cost_bps=10, industry_neutral=False, market_cap_neutral=False, industry_col="l1_code", market_cap_col="total_mv", market_cap_log=True, industry_data=None, adjust=True, output_dir="./output") -> Path
+### 3.1.31 create_factor_analysis_report(self, quantiles=5, period=1, winsorize=None, winsorize_param=3, standardize=False, transaction_cost_bps=10, transaction_buy_cost_bps=None, transaction_sell_cost_bps=None, transaction_round_trip_multiplier=1.0, industry_neutral=False, market_cap_neutral=False, industry_col="l1_code", market_cap_col="total_mv", market_cap_log=True, industry_data=None, adjust=True, output_dir="./output") -> Path
 
 功能：
 - 一键生成完整分析流程和 HTML 报告。
@@ -669,7 +678,9 @@
 5. 在控制台输出关键统计表。
 
 关键参数：
-- transaction_cost_bps：单边交易成本（bps）。
+- transaction_cost_bps：基础单边交易成本（bps）。
+- transaction_buy_cost_bps / transaction_sell_cost_bps：可选买卖单边成本（bps）。
+- transaction_round_trip_multiplier：双边成本倍率（默认 1.0）。
 - adjust：因子计算前与远期收益计算是否统一使用复权价。
 
 返回：
@@ -690,13 +701,16 @@
 
 1. 单边成本
 - 指一次买入或卖出单独收取的成本。
+- 报告净收益计算默认按双边扣减（买卖各收一次）。
+- 若传 `transaction_buy_cost_bps/transaction_sell_cost_bps`，则优先使用细粒度成本模型。
 
 2. bps
 - 1 bps = 0.01%。
 - 10 bps = 0.10%。
 
 3. 因子换手率
-- 用截面秩的日度自相关衡量因子稳定性，数值越高通常代表持仓变化更快。
+- 用截面秩的日度自相关衡量因子稳定性，定义为 `1 - Spearman(rank_t, rank_{t-1})`。
+- 该指标通常在 `[0,1]`，但排序显著反转时可大于 `1`，不应直接当作真实交易换手率。
 
 4. 分组换手率
 - 基于分组成分股集合变化计算，反映组合调仓强度。
@@ -897,6 +911,9 @@ group_net_ret, ls_gross_ret, ls_net_ret, ls_net_perf = f.calculate_net_returns_w
   group_ret,
   group_turnover,
   cost_bps=10,
+  buy_cost_bps=8,
+  sell_cost_bps=12,
+  round_trip_multiplier=1.5,
 )
 
 print(group_net_ret.head())
@@ -917,7 +934,7 @@ chart6 = f.plot_group_turnover(group_turnover)
 chart7 = f.plot_group_turnover_bar(group_turnover_stats)
 chart8 = f.plot_factor_turnover(factor_turnover)
 chart9 = f.plot_turnover_return_correlation(corr_series)
-chart10 = f.plot_long_short_net_vs_gross(ls_gross_ret, ls_net_ret, cost_bps=10)
+chart10 = f.plot_long_short_net_vs_gross(ls_gross_ret, ls_net_ret, cost_bps=30)  # 双边等效 bps
 
 for c in [chart1, chart2, chart3, chart4, chart5, chart6, chart7, chart8, chart9, chart10]:
   print(type(c))
@@ -933,6 +950,9 @@ report_path = f.create_factor_analysis_report(
   winsorize_param=3,
   standardize=True,
   transaction_cost_bps=10,
+  transaction_buy_cost_bps=8,
+  transaction_sell_cost_bps=12,
+  transaction_round_trip_multiplier=1.5,
   adjust=True,
 )
 

@@ -1264,18 +1264,62 @@ class Factor(ABC):
                 corr_dict[col] = pair["turnover"].corr(pair["ret"])
         return pd.Series(corr_dict, name="换手率收益相关系数").round(4)
 
+    def _resolve_transaction_cost_model(
+        self,
+        cost_bps: float,
+        buy_cost_bps: float | None = None,
+        sell_cost_bps: float | None = None,
+        round_trip_multiplier: float = 1.0,
+    ) -> tuple[float, float, float, float]:
+        """解析交易成本参数，返回买卖单边成本与双边成本率。"""
+
+        def _as_non_negative(name: str, value: float) -> float:
+            if isinstance(value, bool) or not isinstance(value, (int, float, np.number)):
+                raise TypeError(f"{name} 必须是数值")
+            v = float(value)
+            if not np.isfinite(v):
+                raise ValueError(f"{name} 必须是有限数值")
+            if v < 0:
+                raise ValueError(f"{name} 不能为负数")
+            return v
+
+        base_bps = _as_non_negative("cost_bps", cost_bps)
+        buy_bps = (
+            base_bps
+            if buy_cost_bps is None
+            else _as_non_negative("buy_cost_bps", buy_cost_bps)
+        )
+        sell_bps = (
+            base_bps
+            if sell_cost_bps is None
+            else _as_non_negative("sell_cost_bps", sell_cost_bps)
+        )
+        multiplier = _as_non_negative("round_trip_multiplier", round_trip_multiplier)
+
+        round_trip_rate = ((buy_bps + sell_bps) / 10000.0) * multiplier
+        return buy_bps, sell_bps, multiplier, round_trip_rate
+
     def calculate_net_returns_with_cost(
         self,
         group_ret: pd.DataFrame,
         group_turnover: pd.DataFrame,
         cost_bps: float = 10,
+        buy_cost_bps: float | None = None,
+        sell_cost_bps: float | None = None,
+        round_trip_multiplier: float = 1.0,
     ) -> tuple[pd.DataFrame, pd.Series, pd.Series, pd.Series]:
         """按换手率扣除交易成本后，计算分组与多空净收益。
 
         Returns:
             ``(分组净收益, 多空毛收益, 多空净收益, 多空净绩效)``
         """
-        cost_rate = cost_bps / 10000
+        _, _, _, round_trip_cost_rate = self._resolve_transaction_cost_model(
+            cost_bps=cost_bps,
+            buy_cost_bps=buy_cost_bps,
+            sell_cost_bps=sell_cost_bps,
+            round_trip_multiplier=round_trip_multiplier,
+        )
+        round_trip_bps = round_trip_cost_rate * 10000
         aligned_turnover, aligned_ret = group_turnover.align(
             group_ret, join="inner", axis=0
         )
@@ -1287,7 +1331,7 @@ class Factor(ABC):
 
         group_net_ret = (
             aligned_ret[ordered_index]
-            - aligned_turnover[ordered_index] * (2 * cost_rate)
+            - aligned_turnover[ordered_index] * round_trip_cost_rate
         )
 
         low_col = ordered_cols[0]
@@ -1297,10 +1341,12 @@ class Factor(ABC):
         long_short_net = (
             long_short_gross
             - (aligned_turnover[high_col] + aligned_turnover[low_col])
-            * (2 * cost_rate)
+            * round_trip_cost_rate
         )
         long_short_net_perf = self.performance_analysis(long_short_net)
-        long_short_net_perf.name = f"多空净收益({high_col}-{low_col}, {cost_bps}bps)"
+        long_short_net_perf.name = (
+            f"多空净收益({high_col}-{low_col}, 双边{round(round_trip_bps, 4)}bps)"
+        )
 
         return group_net_ret, long_short_gross, long_short_net, long_short_net_perf
 
@@ -1580,6 +1626,9 @@ class Factor(ABC):
         winsorize_param: float = 3,
         standardize: bool = False,
         transaction_cost_bps: float = 10,
+        transaction_buy_cost_bps: float | None = None,
+        transaction_sell_cost_bps: float | None = None,
+        transaction_round_trip_multiplier: float = 1.0,
         industry_neutral: bool = False,
         market_cap_neutral: bool = False,
         industry_col: str = "l1_code",
@@ -1597,7 +1646,10 @@ class Factor(ABC):
             winsorize: 去极值方法。
             winsorize_param: 去极值参数。
             standardize: 是否做 Z-score 标准化。
-            transaction_cost_bps: 单边交易成本（bps）。
+            transaction_cost_bps: 基础单边交易成本（bps），用于兼容旧参数。
+            transaction_buy_cost_bps: 买入单边成本（bps），不传则回退到 ``transaction_cost_bps``。
+            transaction_sell_cost_bps: 卖出单边成本（bps），不传则回退到 ``transaction_cost_bps``。
+            transaction_round_trip_multiplier: 双边成本倍率，默认 1.0。
             industry_neutral: 是否行业中性化。
             market_cap_neutral: 是否市值中性化。
             industry_col: 行业字段名。
@@ -1612,20 +1664,36 @@ class Factor(ABC):
         Returns:
             报告 HTML 路径。
         """
-        self.logger.info(
-            "开始生成因子报告: name=%s, quantiles=%s, period=%s, winsorize=%s, "
-            "standardize=%s, cost_bps=%s, industry_neutral=%s, market_cap_neutral=%s, adjust=%s",
-            self.name,
-            quantiles,
-            period,
-            winsorize,
-            standardize,
-            transaction_cost_bps,
-            industry_neutral,
-            market_cap_neutral,
-            adjust,
-        )
         try:
+            buy_bps, sell_bps, cost_multiplier, round_trip_cost_rate = (
+                self._resolve_transaction_cost_model(
+                    cost_bps=transaction_cost_bps,
+                    buy_cost_bps=transaction_buy_cost_bps,
+                    sell_cost_bps=transaction_sell_cost_bps,
+                    round_trip_multiplier=transaction_round_trip_multiplier,
+                )
+            )
+            round_trip_bps = round_trip_cost_rate * 10000
+
+            self.logger.info(
+                "开始生成因子报告: name=%s, quantiles=%s, period=%s, winsorize=%s, standardize=%s, "
+                "base_cost_bps=%s, buy_cost_bps=%s, sell_cost_bps=%s, cost_multiplier=%s, "
+                "round_trip_bps=%s, industry_neutral=%s, market_cap_neutral=%s, adjust=%s",
+                self.name,
+                quantiles,
+                period,
+                winsorize,
+                standardize,
+                transaction_cost_bps,
+                buy_bps,
+                sell_bps,
+                cost_multiplier,
+                round(round_trip_bps, 4),
+                industry_neutral,
+                market_cap_neutral,
+                adjust,
+            )
+
             result = self.get_clean_factor_and_forward_returns(
                 quantiles=quantiles,
                 period=period,
@@ -1682,6 +1750,9 @@ class Factor(ABC):
                     daily_group_ret,
                     group_turnover,
                     cost_bps=transaction_cost_bps,
+                    buy_cost_bps=transaction_buy_cost_bps,
+                    sell_cost_bps=transaction_sell_cost_bps,
+                    round_trip_multiplier=transaction_round_trip_multiplier,
                 )
             )
             group_net_perf = self.calculate_all_group_performance(group_net_ret, period)
@@ -1698,7 +1769,7 @@ class Factor(ABC):
             page.add(self.plot_turnover_return_correlation(turnover_ret_corr))
             page.add(
                 self.plot_long_short_net_vs_gross(
-                    ls_gross_ret, ls_net_ret, cost_bps=transaction_cost_bps
+                    ls_gross_ret, ls_net_ret, cost_bps=round(round_trip_bps, 4)
                 )
             )
             output_dir = Path(output_dir)
@@ -1715,10 +1786,14 @@ class Factor(ABC):
             self.logger.info("\n因子换手率统计\n%s", factor_turnover_summary)
             self.logger.info("\n换手率与收益相关系数\n%s", turnover_ret_corr)
             self.logger.info(
-                "\n分组净绩效指标(扣%sbps)\n%s", transaction_cost_bps, group_net_perf
+                "\n分组净绩效指标(扣双边%sbps)\n%s",
+                round(round_trip_bps, 4),
+                group_net_perf,
             )
             self.logger.info(
-                "\n多空净绩效指标(扣%sbps)\n%s", transaction_cost_bps, ls_net_perf
+                "\n多空净绩效指标(扣双边%sbps)\n%s",
+                round(round_trip_bps, 4),
+                ls_net_perf,
             )
             self.logger.info("因子报告生成完成: %s", self.name)
             return report_path

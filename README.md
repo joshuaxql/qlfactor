@@ -134,6 +134,10 @@ my_factor("ma20", data).create_factor_analysis_report(
     winsorize="3sigma",
     standardize=True,
     transaction_cost_bps=10,
+    # 可选：细粒度成本模型（不传时默认买卖都用 transaction_cost_bps）
+    transaction_buy_cost_bps=8,
+    transaction_sell_cost_bps=12,
+    transaction_round_trip_multiplier=1.0,
     industry_neutral=True,
     market_cap_neutral=True,
     industry_data=industry_data,
@@ -170,7 +174,10 @@ DV_RATIO, DV_TTM, TOTAL_SHARE, FLOAT_SHARE, FREE_SHARE, TOTAL_MV, CIRC_MV`
 - `winsorize_param`：去极值参数（默认 3）
 - `standardize`：是否做截面 Z-Score
 - `industry_neutral` / `market_cap_neutral`：是否中性化
-- `transaction_cost_bps`：单边交易成本（bps）
+- `transaction_cost_bps`：基础单边交易成本（bps，兼容旧参数）
+- `transaction_buy_cost_bps`：买入单边成本（bps，可选）
+- `transaction_sell_cost_bps`：卖出单边成本（bps，可选）
+- `transaction_round_trip_multiplier`：双边成本倍率（默认 1.0）
 - `adjust`：是否使用复权价。
     - `True`（默认）：因子计算前会先把 `open/high/low/close/pre_close` 乘 `adj_factor`，且 `next_ret` 也基于复权价。
     - `False`：因子计算和 `next_ret` 都使用原始价格。
@@ -182,11 +189,27 @@ DV_RATIO, DV_TTM, TOTAL_SHARE, FLOAT_SHARE, FREE_SHARE, TOTAL_MV, CIRC_MV`
 - 1 bps = 0.01% = 0.0001
 - 10 bps = 0.10% = 0.001
 - 单边表示一次交易动作（买入或卖出）收一次成本
+- 本项目净收益扣减使用双边口径（买入+卖出），即 `2 * 单边成本`
 
 具体扣减：
 
-- 分组净收益 = 分组毛收益 − 分组换手率 × 0.001
-- 多空净收益 = 多空毛收益 − (多头换手率 + 空头换手率) × 0.001
+- 成本率 = `cost_bps / 10000`
+- 双边成本率 = `2 * cost_bps / 10000`
+- 例如 `cost_bps=10` 时，双边成本率 `= 0.002`
+- 分组净收益 = 分组毛收益 − 分组换手率 × 双边成本率
+- 多空净收益 = 多空毛收益 − (多头换手率 + 空头换手率) × 双边成本率
+
+可选细粒度口径（方案3）：
+
+- 若传了 `transaction_buy_cost_bps` / `transaction_sell_cost_bps`，对应单边成本优先使用这两个值。
+- 双边成本率 = `((buy_cost_bps + sell_cost_bps) / 10000) * transaction_round_trip_multiplier`
+- 示例：买 8bps、卖 12bps、倍率 1.5，则双边成本率 `= (20/10000)*1.5 = 0.003`
+
+### 6.2 因子换手率指标说明
+
+- 这里的“因子换手率”定义为：`1 - 截面秩自相关(Spearman)`。
+- 它衡量的是**因子排序稳定性**，不是严格意义上的成交换手率。
+- 该指标通常在 `[0, 1]`，但当相邻两日排序显著反转（相关系数为负）时可能大于 `1`，理论上可到 `2`。
 
 ## 7. 输出结果
 

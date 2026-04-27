@@ -307,6 +307,77 @@ class TestEdgeCases(unittest.TestCase):
         pd.testing.assert_series_equal(long_short_gross, expected_ls_gross, check_names=False)
         pd.testing.assert_series_equal(long_short_net, expected_ls_net, check_names=False)
 
+    def test_asymmetric_cost_and_multiplier(self):
+        f = CrossSectionFactor("xs", self.data)
+        idx = pd.date_range("2024-01-01", periods=3, freq="D")
+        group_ret = pd.DataFrame(
+            {
+                "组1": [0.01, 0.02, 0.03],
+                "组2": [0.03, 0.04, 0.05],
+            },
+            index=idx,
+        )
+        group_turnover = pd.DataFrame(
+            {
+                "组1": [0.2, 0.3, 0.4],
+                "组2": [0.5, 0.6, 0.7],
+            },
+            index=idx,
+        )
+
+        # 买入 8bps + 卖出 12bps，再乘 1.5 倍 => 双边总成本率 0.003
+        round_trip_rate = ((8 + 12) / 10000) * 1.5
+        group_net_ret, long_short_gross, long_short_net, _ = (
+            f.calculate_net_returns_with_cost(
+                group_ret,
+                group_turnover,
+                cost_bps=10,
+                buy_cost_bps=8,
+                sell_cost_bps=12,
+                round_trip_multiplier=1.5,
+            )
+        )
+
+        expected_group_net = group_ret - group_turnover * round_trip_rate
+        expected_ls_gross = group_ret["组2"] - group_ret["组1"]
+        expected_ls_net = expected_ls_gross - (
+            group_turnover["组1"] + group_turnover["组2"]
+        ) * round_trip_rate
+
+        pd.testing.assert_frame_equal(group_net_ret, expected_group_net)
+        pd.testing.assert_series_equal(long_short_gross, expected_ls_gross, check_names=False)
+        pd.testing.assert_series_equal(long_short_net, expected_ls_net, check_names=False)
+
+    def test_cost_model_rejects_negative_values(self):
+        f = CrossSectionFactor("xs", self.data)
+        idx = pd.date_range("2024-01-01", periods=3, freq="D")
+        group_ret = pd.DataFrame(
+            {
+                "组1": [0.01, 0.02, 0.03],
+                "组2": [0.03, 0.04, 0.05],
+            },
+            index=idx,
+        )
+        group_turnover = pd.DataFrame(
+            {
+                "组1": [0.5, 0.5, 0.5],
+                "组2": [0.5, 0.5, 0.5],
+            },
+            index=idx,
+        )
+        with self.assertRaises(ValueError):
+            f.calculate_net_returns_with_cost(
+                group_ret,
+                group_turnover,
+                buy_cost_bps=-1,
+            )
+        with self.assertRaises(ValueError):
+            f.calculate_net_returns_with_cost(
+                group_ret,
+                group_turnover,
+                round_trip_multiplier=-1,
+            )
+
     def test_prepare_factor_cache_refreshes_after_inplace_data_change(self):
         data = self.data.copy()
         f = ClosePriceFactor("close_factor", data)
