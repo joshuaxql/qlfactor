@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qlfactor"
-version = "0.2.2"
+version = "0.2.3"
 description = "A 股因子研究工具：Tushare 日线数据下载与因子分析引擎（IC、分组收益、换手率、成本扣减、HTML 报告）"
 readme = "README.md"
 requires-python = ">=3.12"
